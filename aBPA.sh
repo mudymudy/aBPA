@@ -105,6 +105,8 @@ echo -e "Done\n"
 
 echo -e "Parsing and building FASTA database"
 
+gzip -d "$output"/NCBI/GFF/*
+gzip -d "$output"/NCBI/FASTA/*
 python parsing_and_contatenating.py "$output"/NCBI/GFF
 
 mv clustered_sequences.fasta "$output"/CLUSTERING/
