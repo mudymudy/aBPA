@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep  9 16:14:48 2024
+
+@author: bruno
+"""
+
 from Bio import SeqIO
 import os
 import sys
