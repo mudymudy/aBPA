@@ -131,7 +131,7 @@ species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print 
 echo -e "$species"
 for i in "$output"/NCBI/FASTA/*; do
         name=$(basename "$i")
-        prokka --outdir "$output"/PROKKA/"${name%.fasta}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
+        prokka --outdir "$output"/PROKKA/"${name%.fna}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
 done
 
 
