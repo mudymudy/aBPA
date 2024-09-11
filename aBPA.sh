@@ -193,7 +193,7 @@ for sample in "$data"/*; do
 	samtools coverage "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample}"_genomicsMetrics.txt
 
 	echo -e "\nConverting to FASTQ . . ."
-	samtools fastq -@ "$cores" "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_final.fastq"
+	samtools fastq -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_final.fastq"
 
 	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${sample%.fastq*}.bam
 	
