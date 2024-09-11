@@ -7,6 +7,8 @@ completeness="50"
 coverage="0.5"
 softclipping="5"
 threads="10"
+tax_id=""
+genomes="100"
 
 # Function to print help
 helpf() {
@@ -16,13 +18,14 @@ echo -e "\n\e[1;31mSYNOPSIS\e[0m"
         echo -e "\nMandatory"
         echo -e "  -d, --data <PATH>			Set data file PATH"
         echo -e "  -o, --output <PATH>			Set output directory PATH"
-
+	echo -e "  -n, --taxid <INT>			Set taxonomical ID value <INT>"
+ 
         echo -e "\nOptional"
         echo -e "  -t, --threads <INT>			Set number of threads (default: 10)"
 	echo -e "  -b, --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
 	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
 	echo -e "  -s, --soft-clipping <INT>		Set soft-clipping value (default: 5)"
-	echo -e " "
+	echo -e "  -g, --genomes <INT> 			Set number of genomes to download (default: 100)"
 
         echo -e "  -h, --help				Print this help message and exit."
 
@@ -41,6 +44,8 @@ while [[ "$#" -gt 0 ]]; do
 	-b|--completeness) completeness="$2"; shift ;;
  	-C|--coverage) coverage="$2"; shift ;;
   	-s|--soft-clipping) softclipping="$2"; shift ;;
+   	-n|--taxid) taxid="$2"; shift ;;
+    	-g|--genomes) genomes="$2"; shift ;;
         -h|--help) helpf ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
