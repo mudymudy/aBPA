@@ -76,6 +76,9 @@ mkdir -p "$output"/ALIGNMENTS
 mkdir -p "$output"/NORMALIZATION
 mkdir -p "$output"/MATRIX
 mkdir -p "$output"/PLOTS
+mkdir -p "$output"/HETEROPLASMY
+mkdir -p "$output"/HETEROPLASMY/intermediate_files
+mkdir -p "$output"/HETEROPLASMY/distributions
 
 echo -e "Done\n"
 
@@ -202,6 +205,45 @@ for sample in "$data"/*; do
 done
 
 echo -e "Done\n"
+
+
+
+
+for sample in "$data"/*; do
+	samtools mpileup
+	awk '{print $2,$4,$5,$6,$7}' "$output"/HETEROPLASMY/"$file" > "$output"/HETEROPLASMY/"${file}_filtered_pileup"
+	awk '$3 ~ /[acgtACTG]/' "$output"/HETEROPLASMY/"${file}_filtered_pileup" > "$output"/HETEROPLASMY/"${file}_het1"
+	sed 's/\([atcg]\)/\U\1/g' "$output"/HETEROPLASMY/"${file}_het1" > "$output"/HETEROPLASMY/"${file}_het2"
+	sed 's/,/./g' "$output"/HETEROPLASMY/"${file}_het2" > "$output"/HETEROPLASMY/"${file}_het3"
+	sed 's/\^F//g' "$output"/HETEROPLASMY/"${file}_het3" > "$output"/HETEROPLASMY/"${file}_het4"
+	sed 's/\$//g' "$output"/HETEROPLASMY/"${file}_het4" > "$output"/HETEROPLASMY/"${file}_het5"
+	awk '$3 !~ /-[0-9]+/ && $3 !~ /\+[0-9]+/' "$output"/HETEROPLASMY/"${file}_het5" > "$output"/HETEROPLASMY/"${file}_het6"
+	#TODO WHAT THE HECK ARE THESE LINES
+	awk '$3 ~ /-[0-9]+/ || $3 ~ /\+[0-9]+/' "$output"/HETEROPLASMY/"${file}_het5" > "$output"/HETEROPLASMY/"${file}_weird_lines"
+	awk '$2 != 1' "$output"/HETEROPLASMY/"${file}_het6" > "$output"/HETEROPLASMY/"${file}_het7"
+	awk '{ dot_count = gsub(/\./, "", $3); $5 = dot_count - $2; print }' "$output"/HETEROPLASMY/"${file}_het7" > "$output"/HETEROPLASMY/"${file}_het8"
+	awk '{print $5}' "${file}_het8" | paste "$output"/HETEROPLASMY/"${file}_het7" - > "$output"/HETEROPLASMY/"${file}_het9"
+	awk '{ $5 = ($5 < 0) ? -$5 : $5; print }' "$output"/HETEROPLASMY/"${file}_het9" > "$output"/HETEROPLASMY/"${file}_het10"
+	awk '$5 != $2' "$output"/HETEROPLASMY/"${file}_het10" > "$output"/HETEROPLASMY/"${file}_het11"
+	awk '{new_column = ($5 / $2) * 100; print $0, new_column}' "$output"/HETEROPLASMY/"${file}_het11" > "$output"/HETEROPLASMY/heterozygosis.txt
+	awk '$6<=10' "$output"/HETEROPLASMY/heterozygosis.txt | wc -l > "$output"/HETEROPLASMY/less_than_or_equal_to_10%
+	awk '$6>=90' "$output"/HETEROPLASMY/heterozygosis.txt | wc -l > "$output"/HETEROPLASMY/bigger_than_or_equal_to_90%
+#Removing sites where there is only 1 read from the main file (OPTIONAL)
+#awk 2 != 1 filtered_pileup > mpile_filtered.txt
+	mv "$output"/HETEROPLASMY/*_than_* "$output"/HETEROPLASMY/distributions/
+	mv "$output"/HETEROPLASMY/*_het* "$output"/HETEROPLASMY/intermediate_files/
+done
+
+
+
+
+
+
+
+
+
+
+
 
 
 
