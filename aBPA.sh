@@ -69,6 +69,11 @@ echo -e "Setting up directory structure\n"
 mkdir -p "$output"/NCBI/FASTA
 mkdir -p "$output"/NCBI/GFF
 mkdir -p "$output"/CLUSTERING
+mkdir -p "$output"/PROKKA
+mkdir -p "$output"/
+mkdir -p "$output"/
+mkdir -p "$output"/
+mkdir -p "$output"/
 
 echo -e "Done\n"
 
@@ -92,6 +97,45 @@ esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -patte
 done
 
 echo -e "Done\n"
+
+echo -e "Parsing and building FASTA database"
+
+python parsing_and_contatenating.py "$output"/NCBI/GFF
+
+mv clustered_sequences.fasta "$output"/CLUSTERING/
+
+echo -e "Done\n"
+
+
+echo -e "Clustering gene sequences"
+
+cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n "$threads"
+
+echo -e "Done\n"
+
+
+
+echo -e "Annotating FASTA sequences\n"
+
+ll "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > first
+name=$(cat first)
+species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print $2, $3}' | sed -e 's/ /_/g')
+
+for i in "$output"/NCBI/FASTA/*fasta ;do
+	name=$(basename "$i")
+	prokka --outdir "$output"/PROKKA/"${name%.fasta}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
+done
+
+echo -e "Done\n"
+
+
+
+
+
+
+
+
+
 
 
 echo -e "Extracting raw coverage per gene"
