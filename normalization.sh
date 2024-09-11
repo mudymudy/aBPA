@@ -9,6 +9,11 @@ softclipping="5"
 threads="10"
 tax_id=""
 genomes="100"
+clustering="0.95"
+core="0.01"
+clean="strict"
+
+
 
 # Function to print help
 helpf() {
@@ -26,9 +31,11 @@ echo -e "\n\e[1;31mSYNOPSIS\e[0m"
 	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
 	echo -e "  -s, --soft-clipping <INT>		Set soft-clipping value (default: 5)"
 	echo -e "  -g, --genomes <INT> 			Set number of genomes to download (default: 100)"
-
+	echo -e "  -c, --clustering <INT/FLOAT>		Set clustering threshold (default 0.95)"
+	echo -e "  -p, --core-threshold <FLOAT>		Set core genome threshold (default: 0.01)"	
+ 	echo -e "  -m, --clean-mode <STRING>		Set pangenome mode (default: strict)"
         echo -e "  -h, --help				Print this help message and exit."
-
+	
 echo -e "\n\e[1;31mDESCRIPTION\e[0m"
 	echo -e "\n\e[1;33m-d, --data <PATH>\e[0m:\nPlease specify the full PATH of your data. Example: /home/user/mydata/data"
  	echo -e "\n\e[1;33m-o, --output <DIR>\e[0m:\nPlease specify the full PATH of your output folder. You need to make the folder first before running the program."
@@ -46,6 +53,9 @@ while [[ "$#" -gt 0 ]]; do
   	-s|--soft-clipping) softclipping="$2"; shift ;;
    	-n|--taxid) taxid="$2"; shift ;;
     	-g|--genomes) genomes="$2"; shift ;;
+	-c|--clustering) clustering="$2"; shift ;;
+ 	-p|--core-threshold) core="$2"; shift ;;
+  	-m|--clean-mode) clean="$2"; shift ;;
         -h|--help) helpf ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
