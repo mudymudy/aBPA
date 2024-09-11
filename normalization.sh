@@ -1,5 +1,55 @@
 #!/bin/bash
 
+#Values
+data=""
+output=""
+completeness="50"
+coverage="0.5"
+softclipping="5"
+threads="10"
+
+# Function to print help
+helpf() {
+echo -e "\n\e[1;31mSYNOPSIS\e[0m"
+        echo -e "\n\e[1;33mUSAGE\e[0m \n\n$ bash normalization.sh -d <sample> -o <OUTPUT PATH> [-t <INT>]"
+        echo -e "\n\e[1;33mOPTIONS\e[0m"
+        echo -e "\nMandatory"
+        echo -e "  -d, --data <PATH>			Set data file PATH"
+        echo -e "  -o, --output <PATH>			Set output directory PATH"
+
+        echo -e "\nOptional"
+        echo -e "  -t, --threads <INT>			Set number of threads (default: 10)"
+	echo -e "  -b, --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
+	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
+	echo -e "  -s, --soft-clipping <INT>		Set soft-clipping value (default: 5)"
+	echo -e " "
+
+        echo -e "  -h, --help				Print this help message and exit."
+
+echo -e "\n\e[1;31mDESCRIPTION\e[0m"
+	echo -e "\n\e[1;33m-d, --data <PATH>\e[0m:\nPlease specify the full PATH of your data. Example: /home/user/mydata/data"
+ 	echo -e "\n\e[1;33m-o, --output <DIR>\e[0m:\nPlease specify the full PATH of your output folder. You need to make the folder first before running the program."
+	exit 1
+}
+
+
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        -d|--data) data="$2"; shift ;;
+        -t|--threads) threads="$2"; shift ;;
+        -o|--output) output="$2"; shift ;;
+	-b|--completeness) completeness="$2"; shift ;;
+ 	-C|--coverage) coverage="$2"; shift ;;
+  	-s|--soft-clipping) softclipping="$2"; shift ;;
+        -h|--help) helpf ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+
+
+
 echo -e "Extracting raw coverage per gene"
 
 mkdir -p ./NORMALIZATION
