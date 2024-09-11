@@ -70,9 +70,9 @@ mkdir -p "$output"/NCBI/FASTA
 mkdir -p "$output"/NCBI/GFF
 mkdir -p "$output"/CLUSTERING
 mkdir -p "$output"/PROKKA
-mkdir -p "$output"/
-mkdir -p "$output"/
-mkdir -p "$output"/
+mkdir -p "$output"/PROKKA/GFF
+mkdir -p "$output"/PANGENOME
+mkdir -p "$output"/ALIGNMENTS
 mkdir -p "$output"/
 
 echo -e "Done\n"
@@ -121,13 +121,85 @@ ll "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > first
 name=$(cat first)
 species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print $2, $3}' | sed -e 's/ /_/g')
 
-for i in "$output"/NCBI/FASTA/*fasta ;do
+for i in "$output"/NCBI/FASTA/*fasta; do
 	name=$(basename "$i")
 	prokka --outdir "$output"/PROKKA/"${name%.fasta}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
 done
 
+
+for sample in "$output"/PROKKA/*; do
+	name=$(basename "$sample")
+	mv "$sample"/*gff "$output"/PROKKA/GFF/"${name}.gff"
+done
+
 echo -e "Done\n"
 
+
+echo -e "Building pangenome from annotated files\n"
+
+panaroo -i "$output"/PROKKA/GFF/*.gff -o "$output"/PANGENOME/ --clean-mode "$clean" -a core --core_threshold "$core" -t "$threads"
+
+echo -e "Done\n"
+
+
+
+echo -e "Formatting pangenome sequence"
+
+seqtk seq "$output"/PANGENOME/pan_genome_reference.fa > "$output"/PANGENOME/pan_genome_reference.fasta
+
+echo -e "Done\n"
+
+echo -e "Aligning samples against pangenome reference"
+
+for sample in "$data"/*; do
+	echo -e "\nGenerating the reference genome index files . . ."
+	bwa index "$output"/PANGENOME/pan_genome_reference.fasta
+
+	echo -e "\nRunning alignment against reference . . ."
+	bwa aln -l 16500 -n 0.01 -o 2 -t "$threads" "$output"/PANGENOME/pan_genome_reference.fasta "$sample" > "$output"/ALIGNMENTS/"${sample%.fastq*}.sai"
+
+	echo -e "\nConverting SAI to SAM . . ."
+	bwa samse "$output"/PANGENOME/pan_genome_reference.fasta "$output"/ALIGNMENTS/"${sample%.fastq*}.sai" "$sample" > "$output"/ALIGNMENTS/"${sample%.fastq*}.sam"
+
+	echo -e "\nConverting SAM to BAM and sorting . . ."
+	samtools view -bS "$output"/ALIGNMENTS/"${sample%.fastq*}.sam" > "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+
+	echo -e "\nChecking sanity of BAM file . . ."
+	samtools quickcheck "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+
+	echo -e "\nSorting BAM . . ."
+	samtools sort -o "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+
+	echo -e "\nGenerating BAM index . . ."
+	samtools index "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam"
+
+	echo -e "\nGetting only mapped reads . . . "
+	samtools view -b -@ 10 -F 4 "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam"
+	samtools index "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam"
+
+	echo -e "\nRemoving 5 bases at each end of every reads . . ."
+	~/miniforge3/envs/alignment/bin/bam trimBam "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
+
+	echo -e "\nGetting only reads with 25 mapping quality or more . . ."
+	samtools view -q 25 -o "$output"/ALIGNMENTS/"${sample%.fastq*}_qc.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_softclipped.bam"
+
+	echo -e "\nRemoving reads smaller than 34bp . . ."
+	samtools view -e 'length(seq)>34' -O BAM -o "$output"/ALIGNMENTS/"${sample%.fastq*}_lg.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_qc.bam"
+
+	echo -e "\nSorting the output . . ."
+	samtools sort -o "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}_lg.bam"
+
+	echo -e "\nComputing basic statistics . . ."
+	samtools coverage "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample}"_genomicsMetrics.txt
+
+	echo -e "\nConverting to FASTQ . . ."
+	samtools fastq -@ "$cores" "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_final.fastq"
+
+	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${sample%.fastq*}.bam
+	
+done
+
+echo -e "Done\n"
 
 
 
@@ -237,7 +309,7 @@ awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > ./matrix
 
 awk 'NR>1 {print $1}' ./NORMALIZATION/globalMeanCoverage.txt > ./matrix/sample_names
 
-while read -r name;do
+while read -r name; do
 
 	echo -e "Gene\tnormalizedCoverage\tcompleteness" > ./matrix/"${name}"_index.tmp
 	grep -w "$name" ./NORMALIZATION/geneNormalizedSummary.tab | awk '{print $2, $3, $NF}' >> ./matrix/"${name}"_index.tmp
