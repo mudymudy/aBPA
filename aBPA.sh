@@ -51,7 +51,7 @@ while [[ "$#" -gt 0 ]]; do
 	-b|--completeness) completeness="$2"; shift ;;
  	-C|--coverage) coverage="$2"; shift ;;
   	-s|--soft-clipping) softclipping="$2"; shift ;;
-   	-n|--taxid) taxid="$2"; shift ;;
+   	-n|--taxid) tax_id="$2"; shift ;;
     	-g|--genomes) genomes="$2"; shift ;;
 	-c|--clustering) clustering="$2"; shift ;;
  	-p|--core-threshold) core="$2"; shift ;;
