@@ -64,6 +64,34 @@ done
 
 
 
+echo -e "Setting up directory structure\n"
+
+mkdir -p "$output"/NCBI/FASTA
+mkdir -p "$output"/NCBI/GFF
+mkdir -p "$output"/CLUSTERING
+
+echo -e "Done\n"
+
+
+
+
+
+counter=0
+#get GenBank and FASTA files based on taxonomic ID and stop when reaching genomes variable
+esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
+  if [ "$counter" -ge "$genomes" ]; then
+    break
+  fi
+  
+  fname=$(basename "$url")
+  
+  wget -P "$output/NCBI/GFF" "$url/${fname}_genomic.gbff.gz"
+  wget -P "$output/NCBI/FASTA" "$url/${fname}_genomic.fna.gz"
+  counter=$((counter + 1))
+done
+
+
+
 
 echo -e "Extracting raw coverage per gene"
 
