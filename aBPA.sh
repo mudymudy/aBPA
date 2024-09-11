@@ -195,22 +195,14 @@ for sample in "$data"/*; do
 	echo -e "\nConverting to FASTQ . . ."
 	samtools fastq -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_final.fastq"
 
-	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${sample%.fastq*}.bam
+	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
 	
 done
 
 echo -e "Done\n"
 
-
-
-
-
-
-
-
-
-
 echo -e "Extracting raw coverage per gene"
+
 
 mkdir -p ./NORMALIZATION
 
