@@ -73,7 +73,9 @@ mkdir -p "$output"/PROKKA
 mkdir -p "$output"/PROKKA/GFF
 mkdir -p "$output"/PANGENOME
 mkdir -p "$output"/ALIGNMENTS
-mkdir -p "$output"/
+mkdir -p "$output"/NORMALIZATION
+mkdir -p "$output"/MATRIX
+mkdir -p "$output"/PLOTS
 
 echo -e "Done\n"
 
@@ -201,38 +203,39 @@ done
 
 echo -e "Done\n"
 
-echo -e "Extracting raw coverage per gene"
 
 
-mkdir -p ./NORMALIZATION
 
-for i in *bam; do
+echo -e "Extracting raw coverage per gene\n"
+
+
+for i in "$output"/ALIGNMENTS/*_DMC_P.bam; do
 
 	samtools index "$i"
-	samtools depth -a "$i" > ./NORMALIZATION/"${i%.bam}_rawCoverage.txt"
-	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > ./NORMALIZATION/"${i%.bam}_refLength.txt"
-	samplename=$(basename "${i%.bam}")
-	samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> ./NORMALIZATION/completenessSummary.tab
+	samtools depth -a "$i" > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_rawCoverage.txt"
+	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_refLength.txt"
+	samplename=$(basename "${i%_DMC_P.bam}")
+	samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> "$output"/NORMALIZATION/completenessSummary.tab
 
 done
 
+echo -e "Done\n"
 
-echo -e "\nDone"
 
-echo -e "\nNormalizing coverage per gene"
+echo -e "Normalizing coverage per gene\n"
 
-echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled" > ./NORMALIZATION/geneNormalizedSummary.txt
-echo -e "sampleID \t sampleCoverage \t refCount \t globalMean"  > ./NORMALIZATION/globalMeanCoverage.txt
+echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled" > "$output"/NORMALIZATION/geneNormalizedSummary.txt
+echo -e "sampleID \t sampleCoverage \t refCount \t globalMean"  > "$output"/NORMALIZATION/globalMeanCoverage.txt
 
-for i in ./NORMALIZATION/*_rawCoverage.txt; do
+for i in "$output"/NORMALIZATION/*_rawCoverage.txt; do
     name=$(basename "${i%_rawCoverage.txt}")
     echo -e "Sample being processed: $name\n"
 
     # Compute global mean coverage
     globalMean=$(awk -v name="$name" '{sum += $3; count++} END {if (count > 0) print sum / count; else print "Something went wrong, check " name}' "$i")
     finalCount=$(awk -v name="$name" '{fcount++} END {print fcount}' "$i")
-    refCount=$(cat ./NORMALIZATION/"${name}_refLength.txt")
-    echo -e "$name\t$finalCount\t$refCount\t$globalMean" >> ./NORMALIZATION/globalMeanCoverage.txt
+    refCount=$(cat "$output"/NORMALIZATION/"${name}_refLength.txt")
+    echo -e "$name\t$finalCount\t$refCount\t$globalMean" >> "$output"/NORMALIZATION/globalMeanCoverage.txt
 
     # Normalize coverage per gene
     awk -v globalMean="$globalMean" -v name="$name" -v sampleCoverage="$finalCount" -v refCount="$refCount" '
@@ -253,63 +256,60 @@ for i in ./NORMALIZATION/*_rawCoverage.txt; do
                 print name"\t"gene"\t"normalizedGeneSimple"\t"normalizedGeneScaled"\t"normalizedGenomeSimple"\t"normalizedGenomeScaled
             }
         }
-    ' "$i" >> ./NORMALIZATION/geneNormalizedSummary.txt
+    ' "$i" >> "$output"/NORMALIZATION/geneNormalizedSummary.txt
 
 done
 
 
-echo -e "\nDone"
+echo -e "Done\n"
 
-echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled\tgeneCompleteness" > ./NORMALIZATION/geneNormalizedUpdated.tab
+echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled\tgeneCompleteness" > "$output"/NORMALIZATION/geneNormalizedUpdated.tab
 
-sed -i -e 's/~/_/g' ./NORMALIZATION/geneNormalizedSummary.txt
+sed -i -e 's/~/_/g' "$output"/NORMALIZATION/geneNormalizedSummary.txt
 
-awk 'NR>1{print $1"XYZ"$2, $3, $4, $5, $6}' ./NORMALIZATION/geneNormalizedSummary.txt > ./NORMALIZATION/TMP1
+awk 'NR>1{print $1"XYZ"$2, $3, $4, $5, $6}' "$output"/NORMALIZATION/geneNormalizedSummary.txt > "$output"/NORMALIZATION/TMP1
 
-awk '{print $1"XYZ"$2, $3}' ./NORMALIZATION/completenessSummary.tab > ./NORMALIZATION/TMP2
+awk '{print $1"XYZ"$2, $3}' "$output"/NORMALIZATION/completenessSummary.tab > "$output"/NORMALIZATION/TMP2
 
 while read -r ID completeness;do
 
-	if grep -wq "${ID}" ./NORMALIZATION/TMP1; then
-		oldLine=$(grep -w "${ID}" ./NORMALIZATION/TMP1)
-		specificCompleteness=$(grep -w "${ID}" ./NORMALIZATION/TMP2 | awk '{print $NF}')
-		echo -e "${oldLine}\t${specificCompleteness}" >> ./NORMALIZATION/geneNormalizedUpdated.tab
+	if grep -wq "${ID}" "$output"/NORMALIZATION/TMP1; then
+		oldLine=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP1)
+		specificCompleteness=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP2 | awk '{print $NF}')
+		echo -e "${oldLine}\t${specificCompleteness}" >> "$output"/NORMALIZATION/geneNormalizedUpdated.tab
 	fi
 
-done < ./NORMALIZATION/TMP2
+done < "$output"/NORMALIZATION/TMP2
 
-sed -i -e 's/XYZ/\t/g' ./NORMALIZATION/geneNormalizedUpdated.tab
-sed -i -e 's/ /\t/g' ./NORMALIZATION/geneNormalizedUpdated.tab
+sed -i -e 's/XYZ/\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
+sed -i -e 's/ /\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
 
 
-rm ./NORMALIZATION/TMP1 ./NORMALIZATION/TMP2 ./NORMALIZATION/geneNormalizedSummary.txt ./NORMALIZATION/completenessSummary.tab
-mv ./NORMALIZATION/geneNormalizedUpdated.tab ./NORMALIZATION/geneNormalizedSummary.tab
+rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
+mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-python plot_cvg_vs_completeness.py ./NORMALIZATION/geneNormalizedSummary.tab
+python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-mkdir -p plots
 
-mv plotCoverage_vs_Completeness.png ./plots/plotCoverage_vs_Completeness.png
+mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
 
-#Managing the matrix
 
-mkdir -p matrix
 
-awk 'NR==1{print $0}' gene_presence_absence.Rtab > ./matrix/matrix.tab
-awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> ./matrix/matrix.tab
-awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > ./matrix/INDEX
+awk 'NR==1{print $0}' gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
+awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
+awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
 
-awk 'NR>1 {print $1}' ./NORMALIZATION/globalMeanCoverage.txt > ./matrix/sample_names
+awk 'NR>1 {print $1}' "$output"/NORMALIZATION/globalMeanCoverage.txt > "$output"/MATRIX/sample_names
 
 while read -r name; do
 
-	echo -e "Gene\tnormalizedCoverage\tcompleteness" > ./matrix/"${name}"_index.tmp
-	grep -w "$name" ./NORMALIZATION/geneNormalizedSummary.tab | awk '{print $2, $3, $NF}' >> ./matrix/"${name}"_index.tmp
+	echo -e "Gene\tnormalizedCoverage\tcompleteness" > "$output"/MATRIX/"${name}"_index.tmp
+	grep -w "$name" "$output"/NORMALIZATION/geneNormalizedSummary.tab | awk '{print $2, $3, $NF}' >> "$output"/MATRIX/"${name}"_index.tmp
 
-done < ./matrix/sample_names
+done < "$output"/MATRIX/sample_names
 
 
-for i in ./matrix/*_index.tmp; do
+for i in "$output"/MATRIX/*_index.tmp; do
 
 	sed -i -e 's/ /\t/g' "$i"
 	python lambda.py "$i"
@@ -317,48 +317,48 @@ for i in ./matrix/*_index.tmp; do
 done
 
 
-mv *_final.csv ./matrix/
+mv *_final.csv "$output"/MATRIX/
 
-for i in ./matrix/*_final.csv; do
+for i in "$output"/MATRIX/*_final.csv; do
 
 	name=$(basename "$i")
-	sed  -e 's/,/\t/g' "$i" | awk 'NR>1{print $0}' > ./matrix/"${name%_index.tmp_final.csv}"_INDEX.Z
+	sed  -e 's/,/\t/g' "$i" | awk 'NR>1{print $0}' > "$output"/MATRIX/"${name%_index.tmp_final.csv}"_INDEX.Z
 
 done
 
 
-for i in ./matrix/*_INDEX.Z; do
+for i in "$output"/MATRIX/*_INDEX.Z; do
     name=$(basename "$i")
     # Create the FINAL_INDEX file
-    echo "${name%_INDEX.Z}" > ./matrix/"${name}"_FINAL_INDEX
+    echo "${name%_INDEX.Z}" > "$output"/MATRIX/"${name}"_FINAL_INDEX
     
     # Process the INDEX file
     while read -r gene; do
         toprint=$(echo "$gene 0")
         if grep -wq "$gene" "$i"; then
-            grep -w "$gene" "$i" >> ./matrix/"${name}"_FINAL_INDEX
+            grep -w "$gene" "$i" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
         else
-            echo "$toprint" >> ./matrix/"${name}"_FINAL_INDEX
+            echo "$toprint" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
         fi
-    done < ./matrix/INDEX
+    done < "$output"/MATRIX/INDEX
     
     # Extract the last column
-    awk '{print $NF}' ./matrix/"${name}"_FINAL_INDEX > ./matrix/"${name}"_FINALCOLUMN
+    awk '{print $NF}' "$output"/MATRIX/"${name}"_FINAL_INDEX > "$output"/MATRIX/"${name}"_FINALCOLUMN
 
 done
 
 
-paste ./matrix/matrix.tab ./matrix/*_FINALCOLUMN > ./matrix/final_matrix.tab
+paste "$output"/MATRIX/matrix.tab "$output"/MATRIX/*_FINALCOLUMN > "$output"/MATRIX/final_matrix.tab
 
 
-rm ./matrix/*_INDEX.Z ./matrix/*_final.csv ./matrix/*_FINAL_INDEX ./matrix/*INDEX.Z_FINALCOLUMN ./matrix/*_index.tmp ./matrix/INDEX ./matrix/matrix.tab
+rm "$output"/MATRIX/*_INDEX.Z "$output"/MATRIX/*_final.csv "$output"/MATRIX/*_FINAL_INDEX "$output"/MATRIX/*INDEX.Z_FINALCOLUMN "$output"/MATRIX/*_index.tmp "$output"/MATRIX/INDEX "$output"/MATRIX/matrix.tab
 
-mv ./matrix/final_matrix.tab ./matrix/matrix.tab
+mv "$output"/MATRIX/final_matrix.tab "$output"/MATRIX/matrix.tab
 
-tr '\n' ' ' < ./matrix/sample_names > ./matrix/names_heatmap
+tr '\n' ' ' < "$output"/MATRIX/sample_names > "$output"/MATRIX/names_heatmap
 
-python heatmap.py ./matrix/matrix.tab ./matrix/names_heatmap
+python heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
 
 
 
-mv *png ./plots
+mv *png "$output"/PLOTS
