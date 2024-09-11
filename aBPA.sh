@@ -124,20 +124,23 @@ echo -e "Done\n"
 
 echo -e "Annotating FASTA sequences\n"
 
-ll "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > first
-name=$(cat first)
+ls -l "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > "$output"/NCBI/GFF/first
+name=$(cat "$output"/NCBI/GFF/first | awk -F'/' '{print $NF}')
+echo -e "$name"
 species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print $2, $3}' | sed -e 's/ /_/g')
-
-for i in "$output"/NCBI/FASTA/*fasta; do
-	name=$(basename "$i")
-	prokka --outdir "$output"/PROKKA/"${name%.fasta}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
+echo -e "$species"
+for i in "$output"/NCBI/FASTA/*; do
+        name=$(basename "$i")
+        prokka --outdir "$output"/PROKKA/"${name%.fasta}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
 done
 
 
 for sample in "$output"/PROKKA/*; do
-	name=$(basename "$sample")
-	mv "$sample"/*gff "$output"/PROKKA/GFF/"${name}.gff"
+        name=$(basename "$sample")
+        mv "$sample"/*gff "$output"/PROKKA/GFF/"${name}.gff"
 done
+
+
 
 echo -e "Done\n"
 
