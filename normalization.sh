@@ -75,7 +75,7 @@ echo -e "Done\n"
 
 
 
-
+echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
 counter=0
 #get GenBank and FASTA files based on taxonomic ID and stop when reaching genomes variable
 esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
@@ -88,9 +88,10 @@ esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -patte
   wget -P "$output/NCBI/GFF" "$url/${fname}_genomic.gbff.gz"
   wget -P "$output/NCBI/FASTA" "$url/${fname}_genomic.fna.gz"
   counter=$((counter + 1))
+  echo -e "Strains downloaded: $counter of $genomes"
 done
 
-
+echo -e "Done\n"
 
 
 echo -e "Extracting raw coverage per gene"
