@@ -3,10 +3,12 @@ import os
 import sys
 
 
+path = sys.argv[1]
+
 
 # Path to the directory containing downloaded GenBank files
-genbank_dir = "/home/users/gonzlezb/BACTERIA/PANGENOME/entrez"
-output_fasta_file = "P_gingivalis_all_genes.fasta"
+genbank_dir = "path"
+output_fasta_file = "clustered_sequences.fasta"
 
 all_genes = {}
 
