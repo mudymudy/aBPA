@@ -209,6 +209,8 @@ echo -e "Done\n"
 
 
 
+
+: ' THIS NEEDS FIXING
 for sample in "$data"/*; do
 	samtools mpileup
 	awk '{print $2,$4,$5,$6,$7}' "$output"/HETEROPLASMY/"$file" > "$output"/HETEROPLASMY/"${file}_filtered_pileup"
@@ -234,7 +236,7 @@ for sample in "$data"/*; do
 	mv "$output"/HETEROPLASMY/*_het* "$output"/HETEROPLASMY/intermediate_files/
 done
 
-
+'
 
 
 
