@@ -11,11 +11,7 @@ import os
 import sys
 
 
-path = sys.argv[1]
-
-
-# Path to the directory containing downloaded GenBank files
-genbank_dir = "path"
+genbank_dir = sys.argv[1]
 output_fasta_file = "clustered_sequences.fasta"
 
 all_genes = {}
