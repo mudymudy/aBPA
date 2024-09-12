@@ -389,7 +389,7 @@ process normalization_and_plots {
 	rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
 	mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab
+	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$completeness" "$coverage"
 
 
 	mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
