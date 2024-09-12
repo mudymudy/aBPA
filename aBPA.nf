@@ -376,7 +376,7 @@ process normalization_and_plots {
 
 	input:
 	val output_dir from params.output
-	val completeness from params.completeness
+	val lcompleteness from params.lcompleteness
 	val coverage from params.coverage
 
 
