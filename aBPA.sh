@@ -164,48 +164,49 @@ echo -e "Aligning samples against pangenome reference"
 for sample in "$data"/*; do
 	echo -e "\nGenerating the reference genome index files . . ."
 	bwa index "$output"/PANGENOME/pan_genome_reference.fasta
+        name=$(basename "$sample")
 
 	echo -e "\nRunning alignment against reference . . ."
-	bwa aln -l 16500 -n 0.01 -o 2 -t "$threads" "$output"/PANGENOME/pan_genome_reference.fasta "$sample" > "$output"/ALIGNMENTS/"${sample%.fastq*}.sai"
+	bwa aln -l 16500 -n 0.01 -o 2 -t "$threads" "$output"/PANGENOME/pan_genome_reference.fasta "$sample" > "$output"/ALIGNMENTS/"${name%.fastq*}.sai"
 
 	echo -e "\nConverting SAI to SAM . . ."
-	bwa samse "$output"/PANGENOME/pan_genome_reference.fasta "$output"/ALIGNMENTS/"${sample%.fastq*}.sai" "$sample" > "$output"/ALIGNMENTS/"${sample%.fastq*}.sam"
+	bwa samse "$output"/PANGENOME/pan_genome_reference.fasta "$output"/ALIGNMENTS/"${name%.fastq*}.sai" "$sample" > "$output"/ALIGNMENTS/"${name%.fastq*}.sam"
 
 	echo -e "\nConverting SAM to BAM and sorting . . ."
-	samtools view -bS "$output"/ALIGNMENTS/"${sample%.fastq*}.sam" > "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+	samtools view -bS "$output"/ALIGNMENTS/"${name%.fastq*}.sam" > "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
 
 	echo -e "\nChecking sanity of BAM file . . ."
-	samtools quickcheck "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+	samtools quickcheck "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
 
 	echo -e "\nSorting BAM . . ."
-	samtools sort -o "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+	samtools sort -o "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
 
 	echo -e "\nGenerating BAM index . . ."
-	samtools index "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam"
+	samtools index "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam"
 
 	echo -e "\nGetting only mapped reads . . . "
-	samtools view -b -@ 10 -F 4 "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam"
-	samtools index "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam"
+	samtools view -b -@ 10 -F 4 "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam" > "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam"
+	samtools index "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam"
 
 	echo -e "\nRemoving 5 bases at each end of every reads . . ."
-	~/miniforge3/envs/alignment/bin/bam trimBam "$output"/ALIGNMENTS/"${sample%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
+	~/miniforge3/envs/alignment/bin/bam trimBam "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
 
 	echo -e "\nGetting only reads with 25 mapping quality or more . . ."
-	samtools view -q 25 -o "$output"/ALIGNMENTS/"${sample%.fastq*}_qc.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_softclipped.bam"
+	samtools view -q 25 -o "$output"/ALIGNMENTS/"${name%.fastq*}_qc.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam"
 
 	echo -e "\nRemoving reads smaller than 34bp . . ."
-	samtools view -e 'length(seq)>34' -O BAM -o "$output"/ALIGNMENTS/"${sample%.fastq*}_lg.bam" "$output"/ALIGNMENTS/"${sample%.fastq*}_qc.bam"
+	samtools view -e 'length(seq)>34' -O BAM -o "$output"/ALIGNMENTS/"${name%.fastq*}_lg.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_qc.bam"
 
 	echo -e "\nSorting the output . . ."
-	samtools sort -o "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}_lg.bam"
+	samtools sort -o "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}_lg.bam"
 
 	echo -e "\nComputing basic statistics . . ."
-	samtools coverage "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample}"_genomicsMetrics.txt
+	samtools coverage "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${name}"_genomicsMetrics.txt
 
 	echo -e "\nConverting to FASTQ . . ."
-	samtools fastq -@ "$threads" "$output"/ALIGNMENTS/"${sample%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${sample%.fastq*}_final.fastq"
+	samtools fastq -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${name%.fastq*}_final.fastq"
 
-	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${sample%.fastq*}.bam"
+	rm "$output"/ALIGNMENTS/*_softclipped.bam "$output"/ALIGNMENTS/*_qc.bam "$output"/ALIGNMENTS/*_lg.bam "$output"/ALIGNMENTS/*sai "$output"/ALIGNMENTS/*sam "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
 	
 done
 
