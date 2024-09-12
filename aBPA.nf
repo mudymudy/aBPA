@@ -370,7 +370,7 @@ process normalize_array {
 }
 
 
-normalization_and_plots {
+process normalization_and_plots {
 	// Declare conda environment
 	conda 'normalization.yaml'
 
@@ -479,7 +479,7 @@ workflow {
 	alignment()
 	raw_extracting()
 	normalize_array()
-	normalization_and_plots
+	normalization_and_plots()
     }
 }
 
