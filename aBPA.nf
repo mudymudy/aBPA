@@ -370,7 +370,101 @@ process normalize_array {
 }
 
 
+normalization_and_plots {
+	// Declare conda environment
+	conda 'normalization.yaml'
 
+	input:
+	val output_dir from params.output
+	val completeness from params.completeness
+	val coverage from params.coverage
+
+
+	script:
+	"""
+	sed -i -e 's/XYZ/\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
+	sed -i -e 's/ /\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
+	
+	
+	rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
+	mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
+
+	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab
+
+
+	mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
+	
+	
+	
+	awk 'NR==1{print $0}' gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
+	awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
+	awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
+	
+	awk 'NR>1 {print $1}' "$output"/NORMALIZATION/globalMeanCoverage.txt > "$output"/MATRIX/sample_names
+	
+	while read -r name; do
+	
+		echo -e "Gene\tnormalizedCoverage\tcompleteness" > "$output"/MATRIX/"${name}"_index.tmp
+		grep -w "$name" "$output"/NORMALIZATION/geneNormalizedSummary.tab | awk '{print $2, $3, $NF}' >> "$output"/MATRIX/"${name}"_index.tmp
+	
+	done < "$output"/MATRIX/sample_names
+	
+	
+	for i in "$output"/MATRIX/*_index.tmp; do
+	
+		sed -i -e 's/ /\t/g' "$i"
+		python lambda.py "$i"
+	
+	done
+	
+	
+	mv *_final.csv "$output"/MATRIX/
+	
+	for i in "$output"/MATRIX/*_final.csv; do
+	
+		name=$(basename "$i")
+		sed  -e 's/,/\t/g' "$i" | awk 'NR>1{print $0}' > "$output"/MATRIX/"${name%_index.tmp_final.csv}"_INDEX.Z
+	
+	done
+	
+	
+	for i in "$output"/MATRIX/*_INDEX.Z; do
+    	name=$(basename "$i")
+    	# Create the FINAL_INDEX file
+    	echo "${name%_INDEX.Z}" > "$output"/MATRIX/"${name}"_FINAL_INDEX
+	    	
+    	# Process the INDEX file
+    	while read -r gene; do
+        	toprint=$(echo "$gene 0")
+        	if grep -wq "$gene" "$i"; then
+            	grep -w "$gene" "$i" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
+        	else
+            	echo "$toprint" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
+	        fi
+    	done < "$output"/MATRIX/INDEX
+	    
+    	# Extract the last column
+    	awk '{print $NF}' "$output"/MATRIX/"${name}"_FINAL_INDEX > "$output"/MATRIX/"${name}"_FINALCOLUMN
+	
+	done
+	
+	
+	paste "$output"/MATRIX/matrix.tab "$output"/MATRIX/*_FINALCOLUMN > "$output"/MATRIX/final_matrix.tab
+	
+	
+	rm "$output"/MATRIX/*_INDEX.Z "$output"/MATRIX/*_final.csv "$output"/MATRIX/*_FINAL_INDEX "$output"/MATRIX/*INDEX.Z_FINALCOLUMN "$output"/MATRIX/*_index.tmp "$output"/MATRIX/INDEX "$output"/MATRIX/matrix.tab
+	
+	mv "$output"/MATRIX/final_matrix.tab "$output"/MATRIX/matrix.tab
+	
+	tr '\n' ' ' < "$output"/MATRIX/sample_names > "$output"/MATRIX/names_heatmap
+	
+	python heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
+
+
+
+	mv *png "$output"/PLOTS
+	""
+}
 
 
 workflow {
@@ -382,6 +476,14 @@ workflow {
         clustering_seqs()
     }
 }
+
+
+
+
+
+
+
+
 
 
 
@@ -416,94 +518,3 @@ for sample in "$data"/*; do
 done
 
 '
-
-
-
-
-
-
-
-#THIS STEP USES ENVIRONMENT CALLED normalization.yaml
-
-
-sed -i -e 's/XYZ/\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
-sed -i -e 's/ /\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
-
-
-rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
-mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
-
-python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab
-
-
-mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
-
-
-
-awk 'NR==1{print $0}' gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
-awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
-awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
-
-awk 'NR>1 {print $1}' "$output"/NORMALIZATION/globalMeanCoverage.txt > "$output"/MATRIX/sample_names
-
-while read -r name; do
-
-	echo -e "Gene\tnormalizedCoverage\tcompleteness" > "$output"/MATRIX/"${name}"_index.tmp
-	grep -w "$name" "$output"/NORMALIZATION/geneNormalizedSummary.tab | awk '{print $2, $3, $NF}' >> "$output"/MATRIX/"${name}"_index.tmp
-
-done < "$output"/MATRIX/sample_names
-
-
-for i in "$output"/MATRIX/*_index.tmp; do
-
-	sed -i -e 's/ /\t/g' "$i"
-	python lambda.py "$i"
-
-done
-
-
-mv *_final.csv "$output"/MATRIX/
-
-for i in "$output"/MATRIX/*_final.csv; do
-
-	name=$(basename "$i")
-	sed  -e 's/,/\t/g' "$i" | awk 'NR>1{print $0}' > "$output"/MATRIX/"${name%_index.tmp_final.csv}"_INDEX.Z
-
-done
-
-
-for i in "$output"/MATRIX/*_INDEX.Z; do
-    name=$(basename "$i")
-    # Create the FINAL_INDEX file
-    echo "${name%_INDEX.Z}" > "$output"/MATRIX/"${name}"_FINAL_INDEX
-    
-    # Process the INDEX file
-    while read -r gene; do
-        toprint=$(echo "$gene 0")
-        if grep -wq "$gene" "$i"; then
-            grep -w "$gene" "$i" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
-        else
-            echo "$toprint" >> "$output"/MATRIX/"${name}"_FINAL_INDEX
-        fi
-    done < "$output"/MATRIX/INDEX
-    
-    # Extract the last column
-    awk '{print $NF}' "$output"/MATRIX/"${name}"_FINAL_INDEX > "$output"/MATRIX/"${name}"_FINALCOLUMN
-
-done
-
-
-paste "$output"/MATRIX/matrix.tab "$output"/MATRIX/*_FINALCOLUMN > "$output"/MATRIX/final_matrix.tab
-
-
-rm "$output"/MATRIX/*_INDEX.Z "$output"/MATRIX/*_final.csv "$output"/MATRIX/*_FINAL_INDEX "$output"/MATRIX/*INDEX.Z_FINALCOLUMN "$output"/MATRIX/*_index.tmp "$output"/MATRIX/INDEX "$output"/MATRIX/matrix.tab
-
-mv "$output"/MATRIX/final_matrix.tab "$output"/MATRIX/matrix.tab
-
-tr '\n' ' ' < "$output"/MATRIX/sample_names > "$output"/MATRIX/names_heatmap
-
-python heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
-
-
-
-mv *png "$output"/PLOTS
