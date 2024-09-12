@@ -1,0 +1,8 @@
+name: biopython
+envchannels:  
+- bioconda  
+- anaconda
+- conda-forge  
+- defaults
+dependencies:  
+- biopython
