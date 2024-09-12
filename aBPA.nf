@@ -270,6 +270,105 @@ process alignment {
 	"""
 }
 
+process raw_extracting {
+	// Declare conda environment
+	conda 'alignment.yaml'
+
+	input:
+	val output_dir from params.output
+
+
+	script:
+	"""
+	echo -e "Extracting raw coverage per gene\n"
+	
+	
+	for i in "$output"/ALIGNMENTS/*_DMC_P.bam; do
+	
+		samtools index "$i"
+		samtools depth -a "$i" > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_rawCoverage.txt"
+		samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_refLength.txt"
+		samplename=$(basename "${i%_DMC_P.bam}")
+		samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> "$output"/NORMALIZATION/completenessSummary.tab
+
+	done
+
+	echo -e "Done\n"
+	"""
+}
+
+
+process normalize_array {
+	// Declare conda environment
+	conda 'normalization.yaml'
+
+	input:
+	val output_dir from params.output
+
+
+	script:
+	"""
+	echo -e "Normalizing coverage per gene\n"
+	
+	echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled" > "$output"/NORMALIZATION/geneNormalizedSummary.txt
+	echo -e "sampleID \t sampleCoverage \t refCount \t globalMean"  > "$output"/NORMALIZATION/globalMeanCoverage.txt
+	
+	for i in "$output"/NORMALIZATION/*_rawCoverage.txt; do
+    	name=$(basename "${i%_rawCoverage.txt}")
+    	echo -e "Sample being processed: $name\n"
+	
+    	# Compute global mean coverage
+    	globalMean=$(awk -v name="$name" '{sum += $3; count++} END {if (count > 0) print sum / count; else print "Something went wrong, check " name}' "$i")
+    	finalCount=$(awk -v name="$name" '{fcount++} END {print fcount}' "$i")
+    	refCount=$(cat "$output"/NORMALIZATION/"${name}_refLength.txt")
+    	echo -e "$name\t$finalCount\t$refCount\t$globalMean" >> "$output"/NORMALIZATION/globalMeanCoverage.txt
+	
+    	# Normalize coverage per gene
+    	awk -v globalMean="$globalMean" -v name="$name" -v sampleCoverage="$finalCount" -v refCount="$refCount" '
+        	{
+            	if ($2 > geneLength[$1]) {
+	                geneLength[$1] = $2
+            	}
+            	sumgene[$1] += $3
+            	countgene[$1]++
+        	}
+        	END {
+            	for (gene in geneLength) {
+                	geneMean = sumgene[gene] / countgene[gene]
+                	normalizedGeneScaled = (geneMean / globalMean) * geneLength[gene]
+			normalizedGeneSimple = (geneMean / globalMean)
+			normalizedGenomeSimple = (geneMean / globalMean) * (geneLength[gene] / sampleCoverage)
+			normalizedGenomeScaled = (geneMean / globalMean) * (geneLength[gene] / refCount)
+	                print name"\t"gene"\t"normalizedGeneSimple"\t"normalizedGeneScaled"\t"normalizedGenomeSimple"\t"normalizedGenomeScaled
+            	}
+	        }
+    	' "$i" >> "$output"/NORMALIZATION/geneNormalizedSummary.txt
+	
+	done
+	
+	
+	echo -e "Done\n"
+	
+	echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled\tgeneCompleteness" > "$output"/NORMALIZATION/geneNormalizedUpdated.tab
+	
+	sed -i -e 's/~/_/g' "$output"/NORMALIZATION/geneNormalizedSummary.txt
+	
+	awk 'NR>1{print $1"XYZ"$2, $3, $4, $5, $6}' "$output"/NORMALIZATION/geneNormalizedSummary.txt > "$output"/NORMALIZATION/TMP1
+	
+	awk '{print $1"XYZ"$2, $3}' "$output"/NORMALIZATION/completenessSummary.tab > "$output"/NORMALIZATION/TMP2
+	
+	while read -r ID completeness;do
+	
+		if grep -wq "${ID}" "$output"/NORMALIZATION/TMP1; then
+			oldLine=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP1)
+			specificCompleteness=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP2 | awk '{print $NF}')
+			echo -e "${oldLine}\t${specificCompleteness}" >> "$output"/NORMALIZATION/geneNormalizedUpdated.tab
+		fi
+	
+	done < "$output"/NORMALIZATION/TMP2
+	"""
+}
+
 
 
 
@@ -283,13 +382,6 @@ workflow {
         clustering_seqs()
     }
 }
-
-
-
-
-
-
-
 
 
 
@@ -333,80 +425,6 @@ done
 
 #THIS STEP USES ENVIRONMENT CALLED normalization.yaml
 
-echo -e "Extracting raw coverage per gene\n"
-
-
-for i in "$output"/ALIGNMENTS/*_DMC_P.bam; do
-
-	samtools index "$i"
-	samtools depth -a "$i" > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_rawCoverage.txt"
-	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_refLength.txt"
-	samplename=$(basename "${i%_DMC_P.bam}")
-	samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> "$output"/NORMALIZATION/completenessSummary.tab
-
-done
-
-echo -e "Done\n"
-
-
-echo -e "Normalizing coverage per gene\n"
-
-echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled" > "$output"/NORMALIZATION/geneNormalizedSummary.txt
-echo -e "sampleID \t sampleCoverage \t refCount \t globalMean"  > "$output"/NORMALIZATION/globalMeanCoverage.txt
-
-for i in "$output"/NORMALIZATION/*_rawCoverage.txt; do
-    name=$(basename "${i%_rawCoverage.txt}")
-    echo -e "Sample being processed: $name\n"
-
-    # Compute global mean coverage
-    globalMean=$(awk -v name="$name" '{sum += $3; count++} END {if (count > 0) print sum / count; else print "Something went wrong, check " name}' "$i")
-    finalCount=$(awk -v name="$name" '{fcount++} END {print fcount}' "$i")
-    refCount=$(cat "$output"/NORMALIZATION/"${name}_refLength.txt")
-    echo -e "$name\t$finalCount\t$refCount\t$globalMean" >> "$output"/NORMALIZATION/globalMeanCoverage.txt
-
-    # Normalize coverage per gene
-    awk -v globalMean="$globalMean" -v name="$name" -v sampleCoverage="$finalCount" -v refCount="$refCount" '
-        {
-            if ($2 > geneLength[$1]) {
-                geneLength[$1] = $2
-            }
-            sumgene[$1] += $3
-            countgene[$1]++
-        }
-        END {
-            for (gene in geneLength) {
-                geneMean = sumgene[gene] / countgene[gene]
-                normalizedGeneScaled = (geneMean / globalMean) * geneLength[gene]
-		normalizedGeneSimple = (geneMean / globalMean)
-		normalizedGenomeSimple = (geneMean / globalMean) * (geneLength[gene] / sampleCoverage)
-		normalizedGenomeScaled = (geneMean / globalMean) * (geneLength[gene] / refCount)
-                print name"\t"gene"\t"normalizedGeneSimple"\t"normalizedGeneScaled"\t"normalizedGenomeSimple"\t"normalizedGenomeScaled
-            }
-        }
-    ' "$i" >> "$output"/NORMALIZATION/geneNormalizedSummary.txt
-
-done
-
-
-echo -e "Done\n"
-
-echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled\tgeneCompleteness" > "$output"/NORMALIZATION/geneNormalizedUpdated.tab
-
-sed -i -e 's/~/_/g' "$output"/NORMALIZATION/geneNormalizedSummary.txt
-
-awk 'NR>1{print $1"XYZ"$2, $3, $4, $5, $6}' "$output"/NORMALIZATION/geneNormalizedSummary.txt > "$output"/NORMALIZATION/TMP1
-
-awk '{print $1"XYZ"$2, $3}' "$output"/NORMALIZATION/completenessSummary.tab > "$output"/NORMALIZATION/TMP2
-
-while read -r ID completeness;do
-
-	if grep -wq "${ID}" "$output"/NORMALIZATION/TMP1; then
-		oldLine=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP1)
-		specificCompleteness=$(grep -w "${ID}" "$output"/NORMALIZATION/TMP2 | awk '{print $NF}')
-		echo -e "${oldLine}\t${specificCompleteness}" >> "$output"/NORMALIZATION/geneNormalizedUpdated.tab
-	fi
-
-done < "$output"/NORMALIZATION/TMP2
 
 sed -i -e 's/XYZ/\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
 sed -i -e 's/ /\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
