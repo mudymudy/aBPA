@@ -396,9 +396,9 @@ process normalization_and_plots {
 	
 	
 	
-	awk 'NR==1{print $0}' gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
-	awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
-	awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
+	awk 'NR==1{print $0}' "$output"/PANGENOME/gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
+	awk 'NR>1 {print $0}' "$output"/PANGENOME/gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
+	awk 'NR>1 {print $1}' "$output"/PANGENOME/gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
 	
 	awk 'NR>1 {print $1}' "$output"/NORMALIZATION/globalMeanCoverage.txt > "$output"/MATRIX/sample_names
 	
