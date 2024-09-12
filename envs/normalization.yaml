@@ -1,0 +1,13 @@
+name: normalization
+channels:  
+- bioconda  
+- anaconda
+- conda-forge  
+- defaults
+dependencies:  
+- samtools
+- biopython
+- pandas
+- numpy
+- seaborn
+- scypy
