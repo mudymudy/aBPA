@@ -145,34 +145,58 @@ process clustering_seqs {
 
 
 process prokka {
+	// Declare conda environment
+	conda 'prokka.yaml'
+
+	input:
+	val output_dir from params.output
+	val threads from params.threads
+	
+	script:
+	"""
+	echo -e "Annotating FASTA sequences\n"
+
+	ls -l "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > "$output"/NCBI/GFF/first
+	name=$(cat "$output"/NCBI/GFF/first | awk -F'/' '{print $NF}')
+	echo -e "$name"
+	species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print $2, $3}' | sed -e 's/ /_/g')
+	echo -e "$species"
+	for i in "$output"/NCBI/FASTA/*; do
+	        name=$(basename "$i")
+	        prokka --outdir "$output"/PROKKA/"${name%.fna}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
+	done
 
 
- prokka.yaml
+	for sample in "$output"/PROKKA/*; do
+	        name=$(basename "$sample")
+	        mv "$sample"/*gff "$output"/PROKKA/GFF/"${name}.gff"
+	done
 
-echo -e "Annotating FASTA sequences\n"
-
-ls -l "$output"/NCBI/GFF/*gbff | awk 'NR==1{print $NF}' > "$output"/NCBI/GFF/first
-name=$(cat "$output"/NCBI/GFF/first | awk -F'/' '{print $NF}')
-echo -e "$name"
-species=$(head -n 20 "$output"/NCBI/GFF/"$name" | grep "ORGANISM" | awk '{print $2, $3}' | sed -e 's/ /_/g')
-echo -e "$species"
-for i in "$output"/NCBI/FASTA/*; do
-        name=$(basename "$i")
-        prokka --outdir "$output"/PROKKA/"${name%.fna}" --addgenes  --addmrna --species "$species" --proteins "$output"/CLUSTERING/clustered_non_redundant_genes.fasta --force --cpus "$threads" "$i"
-done
+	echo -e "Done\n"
+	"""
+}
 
 
-for sample in "$output"/PROKKA/*; do
-        name=$(basename "$sample")
-        mv "$sample"/*gff "$output"/PROKKA/GFF/"${name}.gff"
-done
+process panaroo {
+	// Declare conda environment
+	conda 'panaroo.yaml'
 
+	input:
+	val output_dir from params.output
+	val threads from params.threads
+	val clean from params.clean
+	val core from params.core
 
+	script:
+	"""
+	echo -e "Building pangenome from annotated files\n"
 
-echo -e "Done\n"
+	panaroo -i "$output"/PROKKA/GFF/*.gff -o "$output"/PANGENOME/ --clean-mode "$clean" -a core --core_threshold "$core" -t "$threads"
 
+	echo -e "Done\n"
+	"""
 
-
+}
 
 workflow {
     if (params.help) {
@@ -190,15 +214,6 @@ workflow {
 
 
 
-
-
-#THIS STEP USES ENVIRONMENT CALLED panaroo.yaml
-
-echo -e "Building pangenome from annotated files\n"
-
-panaroo -i "$output"/PROKKA/GFF/*.gff -o "$output"/PANGENOME/ --clean-mode "$clean" -a core --core_threshold "$core" -t "$threads"
-
-echo -e "Done\n"
 
 #THIS STEP USES ENVIRONMENT CALLED alignment.yaml
 
