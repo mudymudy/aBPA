@@ -284,11 +284,11 @@ process raw_extracting {
 	
 	
 	for i in "$output"/ALIGNMENTS/*_DMC_P.bam; do
-	
+	        name=$(basename "$i")
 		samtools index "$i"
-		samtools depth -a "$i" > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_rawCoverage.txt"
-		samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_refLength.txt"
-		samplename=$(basename "${i%_DMC_P.bam}")
+		samtools depth -a "$i" > "$output"/NORMALIZATION/"${name%_DMC_P.bam}_rawCoverage.txt"
+		samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${name%_DMC_P.bam}_refLength.txt"
+		samplename=$(basename "${name%_DMC_P.bam}")
 		samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> "$output"/NORMALIZATION/completenessSummary.tab
 
 	done
