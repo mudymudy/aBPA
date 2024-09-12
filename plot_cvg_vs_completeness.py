@@ -15,8 +15,20 @@ from matplotlib import colors as mcolors
 from matplotlib.patches import Rectangle
 
 data = sys.argv[1]
-completeness = float(sys.argv[2])
-coverage = float(sys.argv[3])
+completeness_str = sys.argv[2]
+coverage_str = sys.argv[3]
+
+
+print(f"Data file: {data}")
+print(f"Completeness: {completeness_str}")
+print(f"Coverage: {coverage_str}")
+
+try:
+    completeness = int(completeness_str)
+    coverage = float(coverage_str)
+except ValueError as e:
+    print(f"Error converting arguments to float: {e}")
+    sys.exit(1)
 
 
 with open(data, 'r') as file:
