@@ -82,8 +82,8 @@ mkdir -p "$output"/HETEROPLASMY/distributions
 
 echo -e "Done\n"
 
-
-
+#PLEASE NOTE THAT EVERY ENVIRONMENT FILE IS IN A FOLDER CALLED envs/
+#THIS STEP USES ENVIRONMENT CALLED entrez.yaml
 
 echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
 counter=0
@@ -103,6 +103,8 @@ done
 
 echo -e "Done\n"
 
+
+#THIS STEP USES ENVIRONMENT CALLED biopython.yaml
 echo -e "Parsing and building FASTA database"
 
 gzip -d "$output"/NCBI/GFF/*
@@ -113,14 +115,14 @@ mv clustered_sequences.fasta "$output"/CLUSTERING/
 
 echo -e "Done\n"
 
-
+#THIS STEP USES ENVIRONMENT CALLED cdhit.yaml
 echo -e "Clustering gene sequences"
 
 cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n "$threads"
 
 echo -e "Done\n"
 
-
+#THIS STEP USES ENVIRONMENT CALLED prokka.yaml
 
 echo -e "Annotating FASTA sequences\n"
 
@@ -144,6 +146,7 @@ done
 
 echo -e "Done\n"
 
+#THIS STEP USES ENVIRONMENT CALLED panaroo.yaml
 
 echo -e "Building pangenome from annotated files\n"
 
@@ -151,7 +154,7 @@ panaroo -i "$output"/PROKKA/GFF/*.gff -o "$output"/PANGENOME/ --clean-mode "$cle
 
 echo -e "Done\n"
 
-
+#THIS STEP USES ENVIRONMENT CALLED alignment.yaml
 
 echo -e "Formatting pangenome sequence"
 
@@ -214,7 +217,7 @@ echo -e "Done\n"
 
 
 
-
+#THIS PROCESS IS STILL IN DEVELOPTMENT, PLEASE DO NOT INCLUDE
 
 : ' THIS NEEDS FIXING
 for sample in "$data"/*; do
@@ -250,11 +253,7 @@ done
 
 
 
-
-
-
-
-
+#THIS STEP USES ENVIRONMENT CALLED normalization.yaml
 
 echo -e "Extracting raw coverage per gene\n"
 
