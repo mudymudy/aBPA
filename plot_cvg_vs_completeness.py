@@ -15,7 +15,8 @@ from matplotlib import colors as mcolors
 from matplotlib.patches import Rectangle
 
 data = sys.argv[1]
-
+completeness = sys.argv[2]
+coverage = sys.argv[3]
 
 
 with open(data, 'r') as file:
@@ -23,11 +24,11 @@ with open(data, 'r') as file:
         print("geneNormalizedSummary.tab file loaded successfully into python.")
         print(summary.head())
 
-
+max_value = summary['normalizedGeneSimple'].max()
 
 line_segments = [
-    [(50, 0), (50, 12)],  # Line 1: vertical line at x=50
-    [(0, 0.5), (100, 0.5)]  # Line 2: horizontal line at y=1.5
+    [(completeness, 0), (completeness, max_value)],  # Line 1: vertical line at x=50
+    [(0, coverage), (100, coverage)]  # Line 2: horizontal line at y=1.5
 ]
 
 plt.figure(figsize=[10,10])
