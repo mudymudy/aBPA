@@ -18,151 +18,136 @@ nextflow.enable.dsl=2
 
 // Help function
 process print_help {
-    when:
-    params.help
-
-    script:
-    """
-    RED='\\033[1;31m'
-    YELLOW='\\033[1;33m'
-    NC='\\033[0m' # No Color
-
-    echo -e "\${RED}SYNOPSIS\${NC}"
-    echo -e "\\n\${YELLOW}USAGE\${NC} \\n\\nnextflow run aBPA.nf -params-file params.json"
-    echo -e "\\n\${YELLOW}OPTIONS\${NC}"
-    echo -e "\\nMandatory"
-    echo -e "  --data <PATH>            Set data file path"
-    echo -e "  --output <PATH>          Set output directory"
-    echo -e "  --taxid <INT>            Set taxonomic ID value"
-
-    echo -e "\\nOptional"
-    echo -e "  --threads <INT>          Set number of threads (default: 10)"
-    echo -e "  --completeness <INT>     Set gene completeness threshold (default: 50)"
-    echo -e "  --coverage <FLOAT>       Set mean depth of coverage threshold (default: 0.5)"
-    echo -e "  --soft-clipping <INT>    Set soft-clipping value (default: 5)"
-    echo -e "  --genomes <INT>          Set number of genomes to download (default: 100)"
-    echo -e "  --clustering <FLOAT>     Set clustering threshold (default: 0.95)"
-    echo -e "  --core-threshold <FLOAT> Set core genome threshold (default: 0.01)"
-    echo -e "  --clean-mode <STRING>    Set pangenome clean mode (default: strict)"
-    echo -e "  --help                  Print this help message and exit"
-    
-    echo -e "\\n\${RED}DESCRIPTION\${NC}"
-    echo -e "\\n\${YELLOW}--data <PATH>\${NC}: Specify the full path of your data (e.g., /home/user/data)"
-    echo -e "\\n\${YELLOW}--output <PATH>\${NC}: Specify the full path of your output directory. Create it before running the program."
-    exit 0
-    """
+    	when:
+    	params.help
+	
+    	script:
+    	"""
+    	RED='\\033[1;31m'
+    	YELLOW='\\033[1;33m'
+    	NC='\\033[0m' # No Color
+	
+    	echo -e "\${RED}SYNOPSIS\${NC}"
+    	echo -e "\\n\${YELLOW}USAGE\${NC} \\n\\nnextflow run aBPA.nf -params-file params.json"
+    	echo -e "\\n\${YELLOW}OPTIONS\${NC}"
+    	echo -e "\\nMandatory"
+    	echo -e "  --data <PATH>            Set data file path"
+    	echo -e "  --output <PATH>          Set output directory"
+    	echo -e "  --taxid <INT>            Set taxonomic ID value"
+	
+    	echo -e "\\nOptional"
+    	echo -e "  --threads <INT>          Set number of threads (default: 10)"
+    	echo -e "  --completeness <INT>     Set gene completeness threshold (default: 50)"
+    	echo -e "  --coverage <FLOAT>       Set mean depth of coverage threshold (default: 0.5)"
+    	echo -e "  --soft-clipping <INT>    Set soft-clipping value (default: 5)"
+    	echo -e "  --genomes <INT>          Set number of genomes to download (default: 100)"
+    	echo -e "  --clustering <FLOAT>     Set clustering threshold (default: 0.95)"
+    	echo -e "  --core-threshold <FLOAT> Set core genome threshold (default: 0.01)"
+    	echo -e "  --clean-mode <STRING>    Set pangenome clean mode (default: strict)"
+    	echo -e "  --help                  Print this help message and exit"
+	    
+    	echo -e "\\n\${RED}DESCRIPTION\${NC}"
+    	echo -e "\\n\${YELLOW}--data <PATH>\${NC}: Specify the full path of your data (e.g., /home/user/data)"
+    	echo -e "\\n\${YELLOW}--output <PATH>\${NC}: Specify the full path of your output directory. Create it before running the program."
+    	exit 0
+    	"""
 }
 
 // Process for downloading GenBank and FASTA files based on taxonomic ID
 process download_genbank_fasta {
-    // Declare conda environment
-    conda 'entrez.yaml'
+	// Declare conda environment
+	conda 'entrez.yaml'
     
-    input:
-    val tax_id from params.tax_id
-    val genomes from params.genomes
-    val output_dir from params.output
+    	input:
+    	val tax_id from params.tax_id
+    	val genomes from params.genomes
+    	val output_dir from params.output
 
-    script:
-    """
-    echo -e "Setting up directory structure\n"
+    	script:
+    	"""
+    	echo -e "Setting up directory structure\n"
 
-    mkdir -p "${output_dir}/NCBI/FASTA"
-    mkdir -p "${output_dir}/NCBI/GFF"
-    mkdir -p "${output_dir}/CLUSTERING"
-    mkdir -p "${output_dir}/PROKKA/GFF"
-    mkdir -p "${output_dir}/PANGENOME"
-    mkdir -p "${output_dir}/ALIGNMENTS"
-    mkdir -p "${output_dir}/NORMALIZATION"
-    mkdir -p "${output_dir}/MATRIX"
-    mkdir -p "${output_dir}/PLOTS"
-    mkdir -p "${output_dir}/HETEROPLASMY/intermediate_files"
-    mkdir -p "${output_dir}/HETEROPLASMY/distributions"
+    	mkdir -p "${output_dir}/NCBI/FASTA"
+    	mkdir -p "${output_dir}/NCBI/GFF"
+    	mkdir -p "${output_dir}/CLUSTERING"
+    	mkdir -p "${output_dir}/PROKKA/GFF"
+    	mkdir -p "${output_dir}/PANGENOME"
+    	mkdir -p "${output_dir}/ALIGNMENTS"
+	mkdir -p "${output_dir}/NORMALIZATION"
+    	mkdir -p "${output_dir}/MATRIX"
+    	mkdir -p "${output_dir}/PLOTS"
+    	mkdir -p "${output_dir}/HETEROPLASMY/intermediate_files"
+    	mkdir -p "${output_dir}/HETEROPLASMY/distributions"
 
-    echo -e "Done\n"
+    	echo -e "Done\n"
 
-    echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
-    counter=0
+    	echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
+    	counter=0
 
-    esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
-      if [ "\$counter" -ge "${genomes}" ]; then
-        break
-      fi
+    	esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
+      	if [ "\$counter" -ge "${genomes}" ]; then
+	        break
+      	fi
       
-      fname=\$(basename "\$url")
+      	fname=\$(basename "\$url")
       
-      wget -P "${output_dir}/NCBI/GFF" "\${url}/\${fname}_genomic.gbff.gz"
-      wget -P "${output_dir}/NCBI/FASTA" "\${url}/\${fname}_genomic.fna.gz"
+      	wget -P "${output_dir}/NCBI/GFF" "\${url}/\${fname}_genomic.gbff.gz"
+      	wget -P "${output_dir}/NCBI/FASTA" "\${url}/\${fname}_genomic.fna.gz"
       
-      counter=\$((counter + 1))
-      echo -e "Strains downloaded: \$counter of ${genomes}"
-    done
+      	counter=\$((counter + 1))
+      	echo -e "Strains downloaded: \$counter of ${genomes}"
+    	done
 
-    echo -e "Done\n"
-    """
+    	echo -e "Done\n"
+    	"""
 }
 
 process parse_and_build_fasta_db {
-    // Declare conda environment
-    conda 'biopython.yaml'
+	// Declare conda environment
+	conda 'biopython.yaml'
     
-    input:
-    val output_dir from params.output
+	input:
+    	val output_dir from params.output
 
-    script:
-    """
-    echo -e "Parsing and building FASTA database"
+	script:
+	"""
+	echo -e "Parsing and building FASTA database"
 
-    gzip -d "${output_dir}/NCBI/GFF/*"
-    gzip -d "${output_dir}/NCBI/FASTA/*"
-    python parsing_and_contatenating.py "${output_dir}/NCBI/GFF"
+	gzip -d "${output_dir}/NCBI/GFF/*"
+	gzip -d "${output_dir}/NCBI/FASTA/*"
+	python parsing_and_contatenating.py "${output_dir}/NCBI/GFF"
 
-    mv clustered_sequences.fasta "${output_dir}/CLUSTERING/"
+	mv clustered_sequences.fasta "${output_dir}/CLUSTERING/"
 
-    echo -e "Done\n"
-    """
+	echo -e "Done\n"
+	"""
 }
 
 process clustering_seqs {
-    // Declare conda environment
-    conda 'cdhit.yaml'
+	// Declare conda environment
+	conda 'cdhit.yaml'
 
-    input:
-    val output_dir from params.output
-    val clustering from params.clustering
-    val threads from params.threads
+	input:
+	val output_dir from params.output
+	val clustering from params.clustering
+	val threads from params.threads
 
-    script:
-    """
-    echo -e "Clustering gene sequences"
+	script:
+	"""
+	echo -e "Clustering gene sequences"
 
-    cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n "$threads"
+	cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n "$threads"
 
-    echo -e "Done\n"
-    """
-}
-
-
-workflow {
-    if (params.help) {
-        print_help()
-    } else {
-        download_genbank_fasta()
-        parse_and_build_fasta_db()
-        clustering_seqs()
-    }
+	echo -e "Done\n"
+	"""
 }
 
 
 
+process prokka {
 
 
-
-
-
-
-
-#THIS STEP USES ENVIRONMENT CALLED prokka.yaml
+ prokka.yaml
 
 echo -e "Annotating FASTA sequences\n"
 
@@ -185,6 +170,27 @@ done
 
 
 echo -e "Done\n"
+
+
+
+
+workflow {
+    if (params.help) {
+        print_help()
+    } else {
+        download_genbank_fasta()
+        parse_and_build_fasta_db()
+        clustering_seqs()
+    }
+}
+
+
+
+
+
+
+
+
 
 #THIS STEP USES ENVIRONMENT CALLED panaroo.yaml
 
