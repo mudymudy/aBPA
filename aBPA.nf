@@ -3,7 +3,7 @@
 // Default parameter values
 params.data = ""
 params.output = ""
-params.completeness = "50"
+params.lcompleteness = "50"
 params.coverage = "0.5"
 params.softclipping = "5"
 params.threads = "10"
@@ -37,7 +37,7 @@ process print_help {
 	
     	echo -e "\\nOptional"
     	echo -e "  --threads <INT>          Set number of threads (default: 10)"
-    	echo -e "  --completeness <INT>     Set gene completeness threshold (default: 50)"
+    	echo -e "  --lcompleteness <INT>     Set gene completeness threshold (default: 50)"
     	echo -e "  --coverage <FLOAT>       Set mean depth of coverage threshold (default: 0.5)"
     	echo -e "  --soft-clipping <INT>    Set soft-clipping value (default: 5)"
     	echo -e "  --genomes <INT>          Set number of genomes to download (default: 100)"
@@ -389,7 +389,7 @@ process normalization_and_plots {
 	rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
 	mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$completeness" "$coverage"
+	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$lcompleteness" "$coverage"
 
 
 	mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
