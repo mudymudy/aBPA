@@ -1,5 +1,5 @@
 name: biopython
-envchannels:  
+channels:  
 - bioconda  
 - anaconda
 - conda-forge  
