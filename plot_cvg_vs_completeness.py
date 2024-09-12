@@ -15,8 +15,8 @@ from matplotlib import colors as mcolors
 from matplotlib.patches import Rectangle
 
 data = sys.argv[1]
-completeness = sys.argv[2]
-coverage = sys.argv[3]
+completeness = float(sys.argv[2])
+coverage = float(sys.argv[3])
 
 
 with open(data, 'r') as file:
