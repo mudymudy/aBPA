@@ -245,7 +245,7 @@ process alignment {
 		samtools index "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam"
 	
 		echo -e "\nRemoving 5 bases at each end of every reads . . ."
-		~/miniforge3/envs/alignment/bin/bam trimBam "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
+		bam trimBam "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
 	
 		echo -e "\nGetting only reads with 25 mapping quality or more . . ."
 		samtools view -q 25 -o "$output"/ALIGNMENTS/"${name%.fastq*}_qc.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam"
