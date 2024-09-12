@@ -56,7 +56,7 @@ process print_help {
 // Process for downloading GenBank and FASTA files based on taxonomic ID
 process download_genbank_fasta {
 	// Declare conda environment
-	conda 'entrez.yaml'
+	conda 'envs/entrez.yaml'
     
     	input:
     	val tax_id from params.tax_id
@@ -104,7 +104,7 @@ process download_genbank_fasta {
 
 process parse_and_build_fasta_db {
 	// Declare conda environment
-	conda 'biopython.yaml'
+	conda 'envs/biopython.yaml'
     
 	input:
     	val output_dir from params.output
@@ -115,7 +115,7 @@ process parse_and_build_fasta_db {
 
 	gzip -d "${output_dir}/NCBI/GFF/*"
 	gzip -d "${output_dir}/NCBI/FASTA/*"
-	python parsing_and_contatenating.py "${output_dir}/NCBI/GFF"
+	python scripts/parsing_and_contatenating.py "${output_dir}/NCBI/GFF"
 
 	mv clustered_sequences.fasta "${output_dir}/CLUSTERING/"
 
@@ -125,7 +125,7 @@ process parse_and_build_fasta_db {
 
 process clustering_seqs {
 	// Declare conda environment
-	conda 'cdhit.yaml'
+	conda 'envs/cdhit.yaml'
 
 	input:
 	val output_dir from params.output
@@ -146,7 +146,7 @@ process clustering_seqs {
 
 process prokka {
 	// Declare conda environment
-	conda 'prokka.yaml'
+	conda 'envs/prokka.yaml'
 
 	input:
 	val output_dir from params.output
@@ -179,7 +179,7 @@ process prokka {
 
 process panaroo {
 	// Declare conda environment
-	conda 'panaroo.yaml'
+	conda 'envs/panaroo.yaml'
 
 	input:
 	val output_dir from params.output
@@ -201,7 +201,7 @@ process panaroo {
 
 process alignment {
 	// Declare conda environment
-	conda 'alignment.yaml'
+	conda 'envs/alignment.yaml'
 	input:
 	val output_dir from params.output
 	val threads from params.threads
@@ -272,7 +272,7 @@ process alignment {
 
 process raw_extracting {
 	// Declare conda environment
-	conda 'alignment.yaml'
+	conda 'envs/alignment.yaml'
 
 	input:
 	val output_dir from params.output
@@ -300,7 +300,7 @@ process raw_extracting {
 
 process normalize_array {
 	// Declare conda environment
-	conda 'normalization.yaml'
+	conda 'envs/normalization.yaml'
 
 	input:
 	val output_dir from params.output
@@ -372,7 +372,7 @@ process normalize_array {
 
 process normalization_and_plots {
 	// Declare conda environment
-	conda 'normalization.yaml'
+	conda 'envs/normalization.yaml'
 
 	input:
 	val output_dir from params.output
@@ -389,7 +389,7 @@ process normalization_and_plots {
 	rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
 	mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-	python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$lcompleteness" "$coverage"
+	python scripts/plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$lcompleteness" "$coverage"
 
 
 	mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
@@ -413,7 +413,7 @@ process normalization_and_plots {
 	for i in "$output"/MATRIX/*_index.tmp; do
 	
 		sed -i -e 's/ /\t/g' "$i"
-		python lambda.py "$i"
+		python scripts/lambda.py "$i"
 	
 	done
 	
@@ -458,7 +458,7 @@ process normalization_and_plots {
 	
 	tr '\n' ' ' < "$output"/MATRIX/sample_names > "$output"/MATRIX/names_heatmap
 	
-	python heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
+	python scripts/heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
 
 
 
