@@ -474,6 +474,12 @@ workflow {
         download_genbank_fasta()
         parse_and_build_fasta_db()
         clustering_seqs()
+	prokka()
+	panaroo()
+	alignment()
+	raw_extracting()
+	normalize_array()
+	normalization_and_plots
     }
 }
 
