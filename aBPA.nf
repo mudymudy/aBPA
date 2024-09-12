@@ -3,14 +3,14 @@
 // Default parameter values
 params.data = ""
 params.output = ""
-params.lcompleteness = "50"
-params.coverage = "0.5"
-params.softclipping = "5"
-params.threads = "10"
-params.tax_id = ""
-params.genomes = "100"
-params.clustering = "0.95"
-params.core = "0.01"
+params.lcompleteness = 50
+params.coverage = 0.5
+params.softclipping = 5
+params.threads = 10
+params.tax_id = null
+params.genomes = 100
+params.clustering = 0.95
+params.core = 0.01
 params.clean = "strict"
 
 // Enable DSL2
