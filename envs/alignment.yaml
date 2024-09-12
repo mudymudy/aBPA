@@ -1,0 +1,10 @@
+name: alignment
+channels:  
+- bioconda  
+- anaconda
+- conda-forge  
+- defaults
+dependencies:  
+- bwa
+- samtools
+- bamutil
