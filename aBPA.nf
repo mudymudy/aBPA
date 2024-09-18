@@ -5,53 +5,114 @@ params.data = ""
 params.output = ""
 params.lcompleteness = 50
 params.coverage = 0.5
-params.softclipping = 5
 params.threads = 10
 params.tax_id = null
 params.genomes = 100
 params.clustering = 0.95
 params.core = 0.01
 params.clean = "strict"
+params.config = ""
+params.help = false
+
+
 
 // Enable DSL2
 nextflow.enable.dsl=2
 
-// Help function
-process print_help {
-    	when:
-    	params.help
-	
-    	script:
-    	"""
-    	RED='\\033[1;31m'
-    	YELLOW='\\033[1;33m'
-    	NC='\\033[0m' # No Color
-	
-    	echo -e "\${RED}SYNOPSIS\${NC}"
-    	echo -e "\\n\${YELLOW}USAGE\${NC} \\n\\nnextflow run aBPA.nf -params-file params.json"
-    	echo -e "\\n\${YELLOW}OPTIONS\${NC}"
-    	echo -e "\\nMandatory"
-    	echo -e "  --data <PATH>            Set data file path"
-    	echo -e "  --output <PATH>          Set output directory"
-    	echo -e "  --taxid <INT>            Set taxonomic ID value"
-	
-    	echo -e "\\nOptional"
-    	echo -e "  --threads <INT>          Set number of threads (default: 10)"
-    	echo -e "  --lcompleteness <INT>     Set gene completeness threshold (default: 50)"
-    	echo -e "  --coverage <FLOAT>       Set mean depth of coverage threshold (default: 0.5)"
-    	echo -e "  --soft-clipping <INT>    Set soft-clipping value (default: 5)"
-    	echo -e "  --genomes <INT>          Set number of genomes to download (default: 100)"
-    	echo -e "  --clustering <FLOAT>     Set clustering threshold (default: 0.95)"
-    	echo -e "  --core-threshold <FLOAT> Set core genome threshold (default: 0.01)"
-    	echo -e "  --clean-mode <STRING>    Set pangenome clean mode (default: strict)"
-    	echo -e "  --help                  Print this help message and exit"
-	    
-    	echo -e "\\n\${RED}DESCRIPTION\${NC}"
-    	echo -e "\\n\${YELLOW}--data <PATH>\${NC}: Specify the full path of your data (e.g., /home/user/data)"
-    	echo -e "\\n\${YELLOW}--output <PATH>\${NC}: Specify the full path of your output directory. Create it before running the program."
-    	exit 0
-    	"""
+// link flags to params
+if (params.containsKey('-b')) {
+    params.completeness = params.'-b'
 }
+if (params.containsKey('-C')) {
+    params.coverage = params.'-C'
+}
+if (params.containsKey('-d')) {
+    params.data = params.'-d'
+}
+if (params.containsKey('-o')) {
+    params.output = params.'-o'
+}
+if (params.containsKey('-t')) {
+    params.threads = params.'-t'
+}
+if (params.containsKey('-n')) {
+    params.tax_id = params.'-n'
+}
+if (params.containsKey('-g')) {
+    params.genomes = params.'-g'
+}
+if (params.containsKey('-c')) {
+    params.clustering = params.'-c'
+}
+if (params.containsKey('-p')) {
+    params.core = params.'-p'
+}
+if (params.containsKey('-m')) {
+    params.clean = params.'-m'
+}
+if (params.containsKey('-f')) {
+    params.config = params.'-f'
+}
+
+
+def print_help() {
+    println """
+    USAGE: nextflow run aBPA.nf [options]
+
+	echo -e "\n\e[1;31mSYNOPSIS\e[0m"
+        echo -e "\n\e[1;33mUSAGE\e[0m \n\n$ bash normalization.sh -d <sample> -o <OUTPUT PATH> [-t <INT>]"
+        echo -e "\n\e[1;33mOPTIONS\e[0m"
+        echo -e "\nMandatory"
+        echo -e "  -d, --data <PATH>			Set data file PATH"
+        echo -e "  -o, --output <PATH>			Set output directory PATH"
+	echo -e "  -n, --taxid <INT>			Set taxonomical ID value <INT>"
+	echo -e "  -f, --config <PATH>                  Set config file PATH"
+
+        echo -e "\nOptional"
+        echo -e "  -t, --threads <INT>			Set number of threads (default: 10)"
+	echo -e "  -b, --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
+	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
+	echo -e "  -g, --genomes <INT> 			Set number of genomes to download (default: 100)"
+	echo -e "  -c, --clustering <INT/FLOAT>		Set clustering threshold (default 0.95)"
+	echo -e "  -p, --core-threshold <FLOAT>		Set core genome threshold (default: 0.01)"	
+ 	echo -e "  -m, --clean-mode <STRING>		Set pangenome mode (default: strict)"
+        echo -e "  -h, --help				Print this help message and exit."
+	
+	echo -e "\n\e[1;31mDESCRIPTION\e[0m"
+	echo -e "\n\e[1;33m-d, --data <PATH>\e[0m:\nPlease specify the full PATH of your data. Example: /home/user/mydata/data"
+ 	echo -e "\n\e[1;33m-o, --output <DIR>\e[0m:\nPlease specify the full PATH of your output folder. You need to make the folder first before running the program."    """
+    exit 0
+}
+
+workflow {
+    if (params.help) {
+        print_help()
+    }
+
+    // Main workflow steps go here
+    download_genbank_fasta()
+    parse_and_build_fasta_db()
+    clustering_seqs()
+    prokka()
+    panaroo()
+    alignment()
+    raw_extracting()
+    normalize_array()
+    normalization_and_plots()
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Process for downloading GenBank and FASTA files based on taxonomic ID
 process download_genbank_fasta {
