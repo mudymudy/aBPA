@@ -5,14 +5,13 @@ data=""
 output=""
 completeness="50"
 coverage="0.5"
-softclipping="5"
 threads="10"
 tax_id=""
 genomes="100"
 clustering="0.95"
 core="0.01"
 clean="strict"
-
+config=""
 
 
 # Function to print help
@@ -24,12 +23,12 @@ echo -e "\n\e[1;31mSYNOPSIS\e[0m"
         echo -e "  -d, --data <PATH>			Set data file PATH"
         echo -e "  -o, --output <PATH>			Set output directory PATH"
 	echo -e "  -n, --taxid <INT>			Set taxonomical ID value <INT>"
- 
+	echo -e "  -f, --config <PATH>                  Set config file PATH"
+
         echo -e "\nOptional"
         echo -e "  -t, --threads <INT>			Set number of threads (default: 10)"
 	echo -e "  -b, --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
 	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
-	echo -e "  -s, --soft-clipping <INT>		Set soft-clipping value (default: 5)"
 	echo -e "  -g, --genomes <INT> 			Set number of genomes to download (default: 100)"
 	echo -e "  -c, --clustering <INT/FLOAT>		Set clustering threshold (default 0.95)"
 	echo -e "  -p, --core-threshold <FLOAT>		Set core genome threshold (default: 0.01)"	
@@ -50,12 +49,12 @@ while [[ "$#" -gt 0 ]]; do
         -o|--output) output="$2"; shift ;;
 	-b|--completeness) completeness="$2"; shift ;;
  	-C|--coverage) coverage="$2"; shift ;;
-  	-s|--soft-clipping) softclipping="$2"; shift ;;
    	-n|--taxid) tax_id="$2"; shift ;;
     	-g|--genomes) genomes="$2"; shift ;;
 	-c|--clustering) clustering="$2"; shift ;;
  	-p|--core-threshold) core="$2"; shift ;;
   	-m|--clean-mode) clean="$2"; shift ;;
+        -f|--config) config="$2"; shift ;;
         -h|--help) helpf ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
@@ -88,7 +87,7 @@ echo -e "Done\n"
 echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
 counter=0
 #get GenBank and FASTA files based on taxonomic ID and stop when reaching genomes variable
-esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
+esearch -db assembly -query "txid${tax_id}[Organism] AND (latest[filter] AND (complete genome[filter] OR chromosome level[filter]))" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
   if [ "$counter" -ge "$genomes" ]; then
     break
   fi
@@ -98,7 +97,7 @@ esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -patte
   wget -P "$output/NCBI/GFF" "$url/${fname}_genomic.gbff.gz"
   wget -P "$output/NCBI/FASTA" "$url/${fname}_genomic.fna.gz"
   counter=$((counter + 1))
-  echo -e "Strains downloaded: $counter of $genomes"
+  echo -e "Strains downloaded: $counter of $genomes\n\n"
 done
 
 echo -e "Done\n"
@@ -118,7 +117,7 @@ echo -e "Done\n"
 #THIS STEP USES ENVIRONMENT CALLED cdhit.yaml
 echo -e "Clustering gene sequences"
 
-cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n "$threads"
+cd-hit-est -i "$output"/CLUSTERING/clustered_sequences.fasta -o "$output"/CLUSTERING/clustered_non_redundant_genes.fasta -c "$clustering" -n 10 -M 0 -T "$threads"
 
 echo -e "Done\n"
 
