@@ -19,68 +19,64 @@ params.help = false
 // Enable DSL2
 nextflow.enable.dsl=2
 
-// link flags to params
-if (params.containsKey('-b')) {
-    params.completeness = params.'-b'
-}
-if (params.containsKey('-C')) {
-    params.coverage = params.'-C'
-}
-if (params.containsKey('-d')) {
-    params.data = params.'-d'
-}
-if (params.containsKey('-o')) {
-    params.output = params.'-o'
-}
-if (params.containsKey('-t')) {
-    params.threads = params.'-t'
-}
-if (params.containsKey('-n')) {
-    params.tax_id = params.'-n'
-}
-if (params.containsKey('-g')) {
-    params.genomes = params.'-g'
-}
-if (params.containsKey('-c')) {
-    params.clustering = params.'-c'
-}
-if (params.containsKey('-p')) {
-    params.core = params.'-p'
-}
-if (params.containsKey('-m')) {
-    params.clean = params.'-m'
-}
-if (params.containsKey('-f')) {
-    params.config = params.'-f'
-}
-
-
 def print_help() {
-    println """
-    USAGE: nextflow run aBPA.nf [options]
+	println "\n\033[1;31mSYNOPSIS\033[0m"
 
-	echo -e "\n\e[1;31mSYNOPSIS\e[0m"
-        echo -e "\n\e[1;33mUSAGE\e[0m \n\n$ bash normalization.sh -d <sample> -o <OUTPUT PATH> [-t <INT>]"
-        echo -e "\n\e[1;33mOPTIONS\e[0m"
-        echo -e "\nMandatory"
-        echo -e "  -d, --data <PATH>			Set data file PATH"
-        echo -e "  -o, --output <PATH>			Set output directory PATH"
-	echo -e "  -n, --taxid <INT>			Set taxonomical ID value <INT>"
-	echo -e "  -f, --config <PATH>                  Set config file PATH"
-
-        echo -e "\nOptional"
-        echo -e "  -t, --threads <INT>			Set number of threads (default: 10)"
-	echo -e "  -b, --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
-	echo -e "  -C, --coverage <INT/FLOAT>		Set mean depth of coverage threshold (default: 0.5)"
-	echo -e "  -g, --genomes <INT> 			Set number of genomes to download (default: 100)"
-	echo -e "  -c, --clustering <INT/FLOAT>		Set clustering threshold (default 0.95)"
-	echo -e "  -p, --core-threshold <FLOAT>		Set core genome threshold (default: 0.01)"	
- 	echo -e "  -m, --clean-mode <STRING>		Set pangenome mode (default: strict)"
-        echo -e "  -h, --help				Print this help message and exit."
+	println "\n\033[1;33mUSAGE\033[0m"
+	println "\nnextflow run aBPA.nf --data <PATH> --output <PATH> --tax_id <INT> --config <PATH/FILE> [..OPTIONS..]"
 	
-	echo -e "\n\e[1;31mDESCRIPTION\e[0m"
-	echo -e "\n\e[1;33m-d, --data <PATH>\e[0m:\nPlease specify the full PATH of your data. Example: /home/user/mydata/data"
- 	echo -e "\n\e[1;33m-o, --output <DIR>\e[0m:\nPlease specify the full PATH of your output folder. You need to make the folder first before running the program."    """
+	println "\n\033[1;33mMANDATORY\033[0m"
+	println "  --data <PATH>		Set data file PATH"
+	println "  --output <PATH>		Set output directory PATH"
+	println "  --tax_id <INT>		Set taxonomical ID value <INT>"
+	println "  --config <PATH>		Set config file PATH"
+	
+	println "\n\033[1;33mOPTIONS\033[0m"
+	println "  --threads <INT>		Set number of threads (default: 10)"
+	println "  --gcompleteness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
+	println "  --coverage <INT/FLOAT>	Set mean depth of coverage threshold (default: 0.5)"
+	println "  --genomes <INT>		Set number of genomes to download (default: 100)"
+	println "  --clustering <INT/FLOAT>	Set clustering threshold (default 0.95)"
+	println "  --core-threshold <FLOAT>	Set core genome threshold (default: 0.01)"
+	println "  --clean-mode <STRING>	Set pangenome mode (default: strict)"
+	println "  --help			Print help page and exit"
+	
+	println "\n\033[1;31mDESCRIPTION\033[0m"
+	println "\n\033[1;33m--data <PATH>\033[0m"
+	println "Please specify the full PATH of your data. Example: /home/user/mydata/data"
+	
+	println "\n\033[1;33m--output <PATH>\033[0m"
+	println "Please specify the full PATH of your output folder. You need to make the folder first before running the program."
+
+	println "\n\033[1;33m--tax_id <INT>\033[0m"
+	println "Please specify the taxonomical ID for your bacteria. It should be a discrete and unique number."
+	
+	println "\n\033[1;33m--config <PATH>\033[0m"
+	println "\nPlease set file PATH of your config.tab file. Example: /home/user/me/aBPA/config/config.tab"
+	println "config.tab file should contain 3 fields separated by tab. First field should have the sample name, second field softclipping value <INT> and third field group ID."
+	println "\nExample: \n	SAMPLE1	5	NONUDG\n	SAMPLE2	2	UDG"
+
+	println "\n\033[1;33m--threads <INT>\033[0m"
+	println "Set amount of threads to be used globally."
+
+	println "\n\033[1;33m--gcompleteness <INT>\033[0m"
+	println "Set gene breadth of coverage threshold as percentage. Genes that have a value less than <INT> will be considered absent."
+
+	println "\n\033[1;33m--coverage <INT/FLOAT>\033[0m"
+	println "Set gene normalized coverage threshold. Currently aBPA is using the simplest statistic for normalization: (Gene mean depth/Global mean depth)."
+
+        println "\n\033[1;33m--genomes <INT/FLOAT>\033[0m"
+	println "Set amount of FASTA/GENBANK files to be downloaded. Bear in mind disk space."
+
+        println "\n\033[1;33m--clustering <INT/FLOAT>\033[0m"
+	println "Set clustering threshold <INT/FLOAT> for FASTA database.\nA value of 0.9 means any group of sequences with identity values equal or bigger than 0.9 will be clustered together and a consensus representative sequence will be produced."
+
+        println "\n\033[1;33m--core-threshold <INT/FLOAT>\033[0m"
+	println "Set threshold for core genome building. Similarly as clustering flag but during pangenome step."
+
+        println "\n\033[1;33m--clean-mode <INT/FLOAT>\033[0m"
+	println "Set behaviour of pangenome building. Visit Panaroo documentation to know more about this.\n\n"
+
     exit 0
 }
 
