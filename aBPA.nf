@@ -80,84 +80,132 @@ def print_help() {
     exit 0
 }
 
-workflow {
-    if (params.help) {
-        print_help()
-    }
+/*
+ * As the name suggest, it will just generate the whole pipeline directory structure.
+ */
 
-    // Main workflow steps go here
-    download_genbank_fasta()
-    parse_and_build_fasta_db()
-    clustering_seqs()
-    prokka()
-    panaroo()
-    alignment()
-    raw_extracting()
-    normalize_array()
-    normalization_and_plots()
+process dirStructure {
+
+	input:
+	path output
+
+	script:
+	"""
+	#!/bin/bash
+	mkdir -p "${output}/NCBI/FASTA"
+	mkdir -p "${output}/NCBI/GFF"
+	mkdir -p "${output}/CLUSTERING"
+	mkdir -p "${output}/PROKKA/GFF"
+	mkdir -p "${output}/PANGENOME"
+	mkdir -p "${output}/ALIGNMENTS"
+	mkdir -p "${output}/NORMALIZATION"
+	mkdir -p "${output}/MATRIX"
+	mkdir -p "${output}/PLOTS"
+	mkdir -p "${output}/HETEROPLASMY/intermediate_files"
+	mkdir -p "${output}/HETEROPLASMY/distributions"
+	"""
+}
+
+/*
+ * entrez() will download FASTA and GenBank files from NCBI as long as a taxonomical ID was provided (mandatory value)
+ */
+
+process entrez {
+	conda "${projectDir}/envs/entrez.yaml"
+	input:
+	path output
+	val genomes
+	val tax_id
+
+	output:
+	tuple path(gff_entrez), path("${params.output}/NCBI/GFF/*gbff.gz")
+	tuple path(fasta_entrez), path("${params.output}/NCBI/FASTA/*fna.gz")
+
+	script:
+	"""
+	counter=0
+	esearch -db assembly -query "txid${params.tax_id}[Organism] AND (latest[filter] AND (complete genome[filter] OR chromosome level[filter]))" | esummary | xtract -pattern DocumentSummary -element FtpPath_RefSeq | while read url; do
+        
+	if [ "\$counter" -ge "${params.genomes}" ]; then
+		break
+	fi
+
+	if [ -z "\$url" ]; then
+		continue
+	fi
+        
+	fname="\$(basename "\$url")"
+	wget -P "${params.output}/NCBI/GFF" "\$url/\${fname}_genomic.gbff.gz"
+        
+	wget -P "${params.output}/NCBI/FASTA" "\$url/\${fname}_genomic.fna.gz"
+
+	counter="\$((counter + 1))"	
+	done
+	"""
 }
 
 
+/*
+ * buildFastaDatabase will parse gene sequences for every gff file and concatenate them into a single file.
+ */
 
-
-
-
-
-
-
-
-
-
-
-
-// Process for downloading GenBank and FASTA files based on taxonomic ID
-process download_genbank_fasta {
-	// Declare conda environment
-	conda 'envs/entrez.yaml'
+process buildFastaDatabase {
+	conda "${projectDir}/envs/biopython.yaml"
     
-    	input:
-    	val tax_id from params.tax_id
-    	val genomes from params.genomes
-    	val output_dir from params.output
+	input:
+	path output
+	path gff_entrez	
+	path fasta_entrez
 
-    	script:
-    	"""
-    	echo -e "Setting up directory structure\n"
+	output:
 
-    	mkdir -p "${output_dir}/NCBI/FASTA"
-    	mkdir -p "${output_dir}/NCBI/GFF"
-    	mkdir -p "${output_dir}/CLUSTERING"
-    	mkdir -p "${output_dir}/PROKKA/GFF"
-    	mkdir -p "${output_dir}/PANGENOME"
-    	mkdir -p "${output_dir}/ALIGNMENTS"
-	mkdir -p "${output_dir}/NORMALIZATION"
-    	mkdir -p "${output_dir}/MATRIX"
-    	mkdir -p "${output_dir}/PLOTS"
-    	mkdir -p "${output_dir}/HETEROPLASMY/intermediate_files"
-    	mkdir -p "${output_dir}/HETEROPLASMY/distributions"
+	tuple path(fastaDB), path("${params.output}/CLUSTERING/clustered_sequences.fasta")
 
-    	echo -e "Done\n"
+	script:
+	"""
+	#!/bin/bash
+	gzip -d "${projectDir}/NCBI/FASTA/*"
+	gzip -d "${projectDir}/NCBI/GFF/*"
+	python "${projectDir}/scripts/parsing_and_contatenating.py" "${params.output}/NCBI/GFF"
 
-    	echo -e "Downloading GenBank and FASTA files based on taxonomic ID\n"
-    	counter=0
-
-    	esearch -db assembly -query "txid${tax_id}[Organism]" | esummary | xtract -pattern DocumentSummary -element FtpPath_GenBank | while read -r url; do
-      	if [ "\$counter" -ge "${genomes}" ]; then
-	        break
-      	fi
-      
-      	fname=\$(basename "\$url")
-      
-      	wget -P "${output_dir}/NCBI/GFF" "\${url}/\${fname}_genomic.gbff.gz"
-      	wget -P "${output_dir}/NCBI/FASTA" "\${url}/\${fname}_genomic.fna.gz"
-      
-      	counter=\$((counter + 1))
-      	echo -e "Strains downloaded: \$counter of ${genomes}"
-    	done
-
-    	echo -e "Done\n"
-    	"""
+	mv "${projectDir}/clustered_sequences.fasta" "${params.output}/CLUSTERING/"
+	"""
 }
+
+workflow {
+	dirStructure(params.output)
+	entrez(params.output, params.genomes, params.tax_id)
+	buildFastaDatabase(params.output, entrez.out)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 process parse_and_build_fasta_db {
 	// Declare conda environment
