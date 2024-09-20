@@ -3,13 +3,13 @@
 #Values
 data=""
 output=""
-completeness="50"
-coverage="0.5"
-threads="10"
+lcompleteness=50
+coverage=0.5
+threads=10
 tax_id=""
-genomes="100"
-clustering="0.95"
-core="0.01"
+genomes=100
+clustering=0.95
+core=0.01
 clean="strict"
 config=""
 
@@ -47,7 +47,7 @@ while [[ "$#" -gt 0 ]]; do
         -d|--data) data="$2"; shift ;;
         -t|--threads) threads="$2"; shift ;;
         -o|--output) output="$2"; shift ;;
-	-b|--completeness) completeness="$2"; shift ;;
+	-b|--lcompleteness) lcompleteness="$2"; shift ;;
  	-C|--coverage) coverage="$2"; shift ;;
    	-n|--taxid) tax_id="$2"; shift ;;
     	-g|--genomes) genomes="$2"; shift ;;
@@ -262,10 +262,10 @@ echo -e "Extracting raw coverage per gene\n"
 
 for i in "$output"/ALIGNMENTS/*_DMC_P.bam; do
 
-	samtools index "$i"
-	samtools depth -a "$i" > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_rawCoverage.txt"
-	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${i%_DMC_P.bam}_refLength.txt"
 	samplename=$(basename "${i%_DMC_P.bam}")
+	samtools index "$i"
+	samtools depth -a "$i" > "$output"/NORMALIZATION/"${samplename}_rawCoverage.txt"
+	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${samplename}_refLength.txt"
 	samtools coverage "$i" | awk -v samplename="$samplename" 'NR>1 {print samplename, $1, $6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t $'\t' >> "$output"/NORMALIZATION/completenessSummary.tab
 
 done
@@ -339,16 +339,16 @@ sed -i -e 's/ /\t/g' "$output"/NORMALIZATION/geneNormalizedUpdated.tab
 rm "$output"/NORMALIZATION/TMP1 "$output"/NORMALIZATION/TMP2 "$output"/NORMALIZATION/geneNormalizedSummary.txt "$output"/NORMALIZATION/completenessSummary.tab
 mv "$output"/NORMALIZATION/geneNormalizedUpdated.tab "$output"/NORMALIZATION/geneNormalizedSummary.tab
 
-python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab
+python plot_cvg_vs_completeness.py "$output"/NORMALIZATION/geneNormalizedSummary.tab "$lcompleteness" "$coverage"
 
 
 mv plotCoverage_vs_Completeness.png "$output"/PLOTS/plotCoverage_vs_Completeness.png
 
 
 
-awk 'NR==1{print $0}' gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
-awk 'NR>1 {print $0}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
-awk 'NR>1 {print $1}' gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
+awk 'NR==1{print $0}' "$output"/PANGENOME/gene_presence_absence.Rtab > "$output"/MATRIX/matrix.tab
+awk 'NR>1 {print $0}' "$output"/PANGENOME/gene_presence_absence.Rtab | sort -k 1 -t $'\t' >> "$output"/MATRIX/matrix.tab
+awk 'NR>1 {print $1}' "$output"/PANGENOME/gene_presence_absence.Rtab | sort -k 1 -t $'\t' > "$output"/MATRIX/INDEX
 
 awk 'NR>1 {print $1}' "$output"/NORMALIZATION/globalMeanCoverage.txt > "$output"/MATRIX/sample_names
 
