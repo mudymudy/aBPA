@@ -133,7 +133,8 @@ def create_clustered_heatmap(data, names):
     #Find positions of ancient strains and extend to include neighbors
     ancient_strains_pos = extend_positions([column_to_position[col] for col in ancient_strains if col in column_to_position], data.shape)
     plot_lines(ancient_strains_pos, 'blue')
-  
+    plt.savefig('plotPresenceAbsence.png') 
+
     plt.show()
 
 
@@ -215,9 +216,9 @@ def reducedClusteredHeatmap(data, names):
     #Find positions of ancient strains and extend to include neighbors
     ancient_strains_pos = extend_positions([column_to_position[col] for col in ancient_strains if col in column_to_position], data.shape)
     plot_lines(ancient_strains_pos, 'blue')
-  
+    plt.savefig('plotPresenceAbsenceReduced.png') 
+
     plt.show()
     
 create_clustered_heatmap(matrix, names)
 reducedClusteredHeatmap(maskedMatrix, names)
-plt.savefig('presence_absence.png') 
