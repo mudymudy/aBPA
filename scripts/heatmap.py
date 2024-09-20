@@ -33,10 +33,11 @@ with open(data, 'r') as file:
         print("matrix.tab file loaded successfully into python.")
         print(matrix.head())
 
-
+#Masking matrix to only cluster genes that are not present in every sample. also do it with a cutoff
 matrix = matrix.set_index(matrix.columns[0]) 
-
-
+mask = (matrix == 1).all(axis=1)
+maskedMatrix = matrix[~mask]
+#maskedMatrixCutOff = 
 
 '''
 I NEED TO IMPLEMENT THIS IN A WAY THAT IT WILL DETECT THE ACTUAL SAMPLES
@@ -132,13 +133,91 @@ def create_clustered_heatmap(data, names):
     #Find positions of ancient strains and extend to include neighbors
     ancient_strains_pos = extend_positions([column_to_position[col] for col in ancient_strains if col in column_to_position], data.shape)
     plot_lines(ancient_strains_pos, 'blue')
-
-    #Add vertical line at position 0
-    clustered_heatmap.ax_heatmap.axvline(x=0, color='blue', linewidth=3)
-    
+  
     plt.show()
 
 
-create_clustered_heatmap(matrix, names)
+def reducedClusteredHeatmap(data, names):
+    """
+    Creates a clustered heatmap with the specified formatting and customization.
+    
+    Parameters:
+    data (pandas.DataFrame): The input data for creating the heatmap.
+    
+    Returns:
+    None
+    """
+    ancient_strains = names
 
+    plt.figure(figsize=(40, 100), dpi=1000)
+
+    sns.set(font_scale=1)
+
+    colors = ["orange", "darkred"]
+    cmap = ListedColormap(colors)
+    line_kws = {"linewidth": 4}
+    
+    clustered_heatmap = sns.clustermap(
+        data, 
+        row_cluster=True, 
+        col_cluster=True, 
+        cmap=cmap, 
+        method="complete", 
+        metric='euclidean', 
+        figsize=(40, 100), 
+        tree_kws=line_kws, 
+        dendrogram_ratio=(0.25, 0.25)
+    )
+
+    clustered_heatmap.ax_heatmap.tick_params(
+        axis='y', which='both', bottom=True, top=False, labelbottom=True, labeltop=False
+    )
+
+    clustered_heatmap.ax_heatmap.set_yticklabels([])
+    
+    colorbar = clustered_heatmap.ax_heatmap.collections[0].colorbar
+    colorbar.set_ticks([0.25, 0.75])
+    colorbar.set_ticklabels(['Absence', 'Presence'])
+    
+    plt.setp(clustered_heatmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90, fontweight='bold', fontsize=10)
+    
+    plt.setp(clustered_heatmap.ax_heatmap.yaxis.get_label(), fontweight='bold', fontsize=10)
+    clustered_heatmap.ax_heatmap.set_ylabel("")
+    
+    colorbar.ax.tick_params(labelsize=50)
+    
+    #Get the positions of columns in the clustered heatmap
+    x_ticks = clustered_heatmap.ax_heatmap.get_xticks()
+    x_labels = [label.get_text() for label in clustered_heatmap.ax_heatmap.get_xticklabels()]
+
+    #Create a mapping from column names to their positions
+    column_to_position = {label: pos for label, pos in zip(x_labels, x_ticks)}
+    
+    def extend_positions(positions, data_shape):
+        """Extend positions to include neighbors but avoid redundant lines."""
+        extended = set()
+        for pos in positions:
+            if 0 < pos < data_shape[1]:
+                extended.add(pos + 0.5)  #Add the position itself
+            if pos - 1 >= 0:
+                    extended.add(pos - 0.5)  #Add the left neighbor
+        return sorted(extended)
+    
+    def plot_lines(positions, color):
+        """Plot vertical lines at specific columns with adjustments."""
+        unique_positions = sorted(set(positions))  #Remove duplicates
+        for vline in unique_positions:
+            if 0 <= vline < data.shape[1]:
+                clustered_heatmap.ax_heatmap.axvline(x=vline, color=color, linewidth=3)
+        print(f"Plotted lines at positions: {unique_positions}")
+
+
+    #Find positions of ancient strains and extend to include neighbors
+    ancient_strains_pos = extend_positions([column_to_position[col] for col in ancient_strains if col in column_to_position], data.shape)
+    plot_lines(ancient_strains_pos, 'blue')
+  
+    plt.show()
+    
+create_clustered_heatmap(matrix, names)
+reducedClusteredHeatmap(maskedMatrix, names)
 plt.savefig('presence_absence.png') 
