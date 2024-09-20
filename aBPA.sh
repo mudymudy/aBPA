@@ -108,6 +108,25 @@ echo -e "Parsing and building FASTA database"
 
 gzip -d "$output"/NCBI/GFF/*
 gzip -d "$output"/NCBI/FASTA/*
+
+#Rename sequences because people want better names
+
+for fasta in "$output"/NCBI/FASTA/*; do
+
+        nameFASTA=$(basename "${fasta}")
+        whole=$(head -n 1 "$fasta" | awk -F',' '{print $1}' | sed -e 's/chromosome//g' | sed -e 's/://g' | awk '{$1=""; sub(/^ /, "") ;print $0}' | sed -e 's/ /_/g')
+        mv "$output"/NCBI/FASTA/"$nameFASTA" "$output"/NCBI/FASTA/"${whole}.fna"
+
+done
+
+
+for gff in "$output"/NCBI/GFF/*; do
+
+        nameGFF=$(basename "${gff}")
+        wholegff=$(awk 'NR==2 {$1=""; sub(/^ /, "");  print $0}' "$gff" | awk -F',' '{print $1}' | sed -e 's/chromosome//g' -e 's/://g' -e 's/ /_/g' -e 's/_$//' -e 's/_.$//g')
+        mv "$output"/NCBI/GFF/"$nameGFF" "$output"/NCBI/GFF/"${wholegff}.gbff"
+done
+
 python parsing_and_contatenating.py "$output"/NCBI/GFF
 
 mv clustered_sequences.fasta "$output"/CLUSTERING/
