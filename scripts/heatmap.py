@@ -33,6 +33,15 @@ with open(data, 'r') as file:
         print("matrix.tab file loaded successfully into python.")
         print(matrix.head())
 
+
+"""
+I need to do:
+                - Select list of genes that are present in at least one ancient strain.
+                - Select list of genes that are present in every sample.
+                - Select list of genes that excludes genes that are present in every sample.
+                - Get list of sample names from the clustered heatmap, so we can know which samples are closer to ancient strains.
+"""
+
 #Select list of genes that excludes genes that are present in every sample.
 mask = (matrix == 1).all(axis=1)
 maskedMatrixNoUbiquitous = matrix[~mask]
