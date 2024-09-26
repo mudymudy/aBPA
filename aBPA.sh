@@ -174,21 +174,23 @@ echo -e "Done\n"
 
 #THIS STEP USES ENVIRONMENT CALLED alignment.yaml
 
+
 echo -e "Formatting pangenome sequence"
 
 seqtk seq "$output"/PANGENOME/pan_genome_reference.fa > "$output"/PANGENOME/pan_genome_reference.fasta
 
 echo -e "Done\n"
 
+
 echo -e "Aligning samples against pangenome reference"
 
 for sample in "$data"/*; do
 
-        echo -e "\nGenerating the reference genome index files . . ."
-        bwa index "$output"/PANGENOME/pan_genome_reference.fasta
+	echo -e "\nGenerating the reference genome index files . . ."
+	bwa index "$output"/PANGENOME/pan_genome_reference.fasta
         name=$(basename "$sample")
         softclipping=$(grep "$name" "$config" | awk '{print $2}')
-        echo -e "You have selected ${softclipping} as the number of bases to be trimmed for ${name}"
+	echo -e "You have selected ${softclipping} as the number of bases to be trimmed for ${name}"
 
 	echo -e "\nRunning alignment against reference . . ."
 	bwa aln -l 16500 -n 0.01 -o 2 -t "$threads" "$output"/PANGENOME/pan_genome_reference.fasta "$sample" > "$output"/ALIGNMENTS/"${name%.fastq*}.sai"
@@ -235,6 +237,7 @@ for sample in "$data"/*; do
 done
 
 echo -e "Done\n"
+
 
 
 
