@@ -276,6 +276,11 @@ done
 
 echo -e "Extracting raw coverage per gene\n"
 
+#First I need to merge files with same group identifier
+#THIS STEP USES ENVIRONMENT CALLED normalization.yaml
+
+echo -e "Extracting raw coverage per gene\n"
+
 #Merging BAM files with same group ID
 
 mkdir -p "$output"/ALIGNMENTS/groups
@@ -284,28 +289,28 @@ awk '{print $NF}' "$config" | uniq > "$output"/ALIGNMENTS/groups/groups
 
 while read -r groupID; do
     groupName=$(echo "$groupID")
-    grep -w "$groupID" "$config" | awk '{print $1}' > "$output"/ALIGNMENTS/groups/"$groupName"
+    grep -w "$groupID" "$config" | awk '{print $1}' > "$output"/ALIGNMENTS/groups/"$groupName"ID
 done < "$output"/ALIGNMENTS/groups/groups
 
-for groupFile in "$output"/ALIGNMENTS/groups/*; do
-    ID=$(basename "$groupFile")
+for groupFile in "$output"/ALIGNMENTS/groups/*ID; do
+    IDs=$(basename "${groupFile%ID}")
 
     bamFiles=()
     while read -r sampleName; do
-        bamFiles+=("$output"/ALIGNMENTS/"${sampleName%.fastq.gz}_DMC_P.bam")
+        bamFiles+=("$output"/ALIGNMENTS/"${sampleName%.fastq*}_DMC_P.bam")
     done < "$groupFile"
         #Just to check if there is just one sample for a particular group. No need to merge.
     if [ ${#bamFiles[@]} -eq 1 ]; then
-        cp "${bamFiles[0]}" "$output"/ALIGNMENTS/postPangenomeAlignment_"${ID}".bam
+        cp "${bamFiles[0]}" "$output"/ALIGNMENTS/postPangenomeAlignment_"${IDs}".bam
     elif [ ${#bamFiles[@]} -gt 1 ]; then
-        samtools merge "$output"/ALIGNMENTS/postPangenomeAlignment_mergedGroup"${ID}".bam "${bamFiles[@]}"
+        samtools merge "$output"/ALIGNMENTS/postPangenomeAlignment_mergedGroup"${IDs}".bam "${bamFiles[@]}"
     fi
 done
 
 
 for i in "$output"/ALIGNMENTS/postPangenomeAlignment_*bam; do
 
- 	samplename=$(basename "${i%_DMC_P.bam}")
+        samplename=$(basename "${i%_DMC_P.bam}")
 	samtools index "$i"
 	samtools depth -a "$i" > "$output"/NORMALIZATION/"${samplename}_rawCoverage.txt"
 	samtools idxstats "$i" | awk '{sum += $2} END {print sum}' > "$output"/NORMALIZATION/"${samplename}_refLength.txt"
@@ -456,3 +461,4 @@ python heatmap.py "$output"/MATRIX/matrix.tab "$output"/MATRIX/names_heatmap
 
 
 mv *png "$output"/PLOTS
+
