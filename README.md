@@ -27,3 +27,8 @@ Then add this line at the end:
 ### Note that the PATH will be unique in your system. In my case I installed nextflow in the folder /Softwares/Nextflow.
 
 
+Then git clone this repository:
+
+
+
+`git clone https://github.com/mudymudy/aBPA/`
