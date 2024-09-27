@@ -66,7 +66,13 @@ maskedMatrixGenesUbiquitous = maskedMatrixUbiquitous.index
 maskedMatrixGenesUbiquitous_series = pd.Series(maskedMatrixGenesUbiquitous, name="Genes")
 maskedMatrixGenesUbiquitous_series.to_csv("maskedMatrixGenesUbiquitous.txt", sep="\t", index=False, header=False)
 
+# 1. Get the number of samples in the matrix, which will be 100%
+# 2. Iterate over each row and select genes in the matrix that are present at least 80% of the samples
+# 3. Make a new dataframe with this set of genes: Plot it and export it to working directory.
 
+num_samples = matrix.shape[1]
+threshold = 0.8 * num_samples
+genes_above_80_percent = matrix[(matrix.sum(axis=1) >= threshold)]
 '''
 I NEED TO IMPLEMENT THIS IN A WAY THAT IT WILL DETECT THE ACTUAL SAMPLES
 
