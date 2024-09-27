@@ -3,8 +3,10 @@
 ancient Bacterial Pangenome Analysis is a `nextflow` package.
 
 ### Installation
-First you need to have `nextflow` installed. Please visit: https://www.nextflow.io/docs/latest/install.html
-After following the instructions, to be able to call the executable without explicitly define full PATH please do:
+First you need to have `nextflow` installed. Please visit: https://www.nextflow.io/docs/latest/install.html and follow the instructions.
+
+
+After installing `nextflow`, if you wish to be able to call the executable without explicitly define the full PATH please do:
 
 Open your bashrc file:
 nano .bashrc
