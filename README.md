@@ -15,7 +15,7 @@ Then add this line at the end:
 
 
 
-###Note that the PATH will be unique in your system. In my case I installed nextflow in the folder /Softwares/Nextflow.
+### Note that the PATH will be unique in your system. In my case I installed nextflow in the folder /Softwares/Nextflow.
 `export PATH=$PATH:/home/users/myuser/Softwares/Nextflow`
 
 
