@@ -484,6 +484,116 @@ process updateNormalization {
 }
 
 
+process plotCoveragevsCompleteness {
+	conda "${projectDir}/envs/plot.yaml"
+	
+	input:
+	path geneNormalizedUpdated, stageAs: 'gNS/'
+	val gcompleteness
+	val coverage
+
+	output:
+	path 'plotCoverage_vs_Completeness.png', emit: plotCoverage_vs_Completeness
+	
+	script:
+	"""
+	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $gcompleteness $coverage
+	"""
+}
+
+
+process makeMatrix {
+	conda "${projectDir}/envs/plot.yaml"
+
+	input:
+	path pangenomeRtab, stageAs: 'pangenome/*'
+	path gMC, stageAs: 'gMC/*'
+	path normalized, stageAs: 'normalized/*'
+
+	output:
+	path 'matrix.tab', emit: matrix
+	path '*_final.csv', emit: finalCsv
+	path 'sample_names', emit: sampleNames
+	path 'INDEX', emit: INDEX
+
+	script:
+	"""
+	awk 'NR==1{print \$0}' pangenome/gene_presence_absence.Rtab > matrix.tab
+	awk 'NR>1 {print \$0}' pangenome/gene_presence_absence.Rtab | sort -k 1 -t \$'\t' >> matrix.tab
+	awk 'NR>1 {print \$1}' pangenome/gene_presence_absence.Rtab | sort -k 1 -t \$'\t' > INDEX
+
+	awk 'NR>1 {print \$1}' gMC/globalMeanCoverage.txt > sample_names
+
+	while read -r name; do
+
+		echo -e "Gene\tnormalizedCoverage\tcompleteness" > "\${name}"_index.tmp
+		grep -w "\$name" normalized/geneNormalizedUpdated.tab | awk '{print \$2, \$3, \$NF}' >> "\${name}"_index.tmp
+
+	done < sample_names
+
+
+	for i in *_index.tmp; do
+
+		sed -i -e 's/ /\t/g' "\$i"
+		lambda.py "\$i"
+
+	done
+	"""
+}
+
+
+process buildHeatmap {
+	conda "${projectDir}/envs/heatmap.yaml"
+
+	input:
+	path fCSV, stageAs: 'fCSV/*'
+	path INDEX, stageAs: 'INDEX/*'
+	path matrix, stageAs: 'matrix/*'
+	path names, stageAs: 'names/*'
+
+	output:
+	path 'final_matrix.tab', emit: finalMatrix
+	path 'presence_absence.png', emit: presenceAbsence
+	
+	script:
+	"""
+	for i in fCSV/*_final.csv; do
+
+		name=\$(basename "\$i")
+		sed  -e 's/,/\t/g' "\$i" | awk 'NR>1{print \$0}' > "\${name%_index.tmp_final.csv}"_INDEX.Z
+
+	done
+
+
+	for i in *_INDEX.Z; do
+		name=\$(basename "\$i")
+		#Create the FINAL_INDEX file
+		echo "\${name%_INDEX.Z}" > "\${name}"_FINAL_INDEX
+    
+		#Process the INDEX file
+		while read -r gene; do
+			toprint=\$(echo "\$gene 0")
+			if grep -wq "\$gene" "\$i"; then
+				grep -w "\$gene" "\$i" >> "\${name}"_FINAL_INDEX
+			else
+				echo "\$toprint" >> "\${name}"_FINAL_INDEX
+			fi
+		done < INDEX/INDEX
+    
+		#Extract the last column
+		awk '{print \$NF}' "\${name}"_FINAL_INDEX > "\${name}"_FINALCOLUMN
+
+	done
+
+
+	paste matrix/matrix.tab *_FINALCOLUMN > final_matrix.tab
+	tr '\n' ' ' < names/sample_names > names_heatmap
+
+	heatmap.py final_matrix.tab names_heatmap
+	"""
+}
+
+
 workflow {
 	dirStructure(resultsDir)
 	dwnld = entrez(downloadGenomes, taxID, resultsDir)
@@ -497,4 +607,7 @@ workflow {
 	alignmentSummary(configFile, alignment.out.postAlignedBams)
 	normalizationFunction(alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage)
 	updateNormalization(normalizationFunction.out.geneNormalizedSummary, alignmentSummary.out.completenessSummary)
+	plotCoveragevsCompleteness(updateNormalization.out.geneNormalizedUpdated, geneCompleteness, normalizedCoverage)
+	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, updateNormalization.out.geneNormalizedUpdated)
+	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 }
