@@ -8,7 +8,7 @@ ancient Bacterial Pangenome Analysis is a `nextflow` package.
 First you need to have `nextflow` installed. Please visit: https://www.nextflow.io/docs/latest/install.html and follow the instructions.
 
 
-After installing `nextflow`, if you wish to be able to call the executable without explicitly define the full PATH please do:
+After installing `nextflow`, if you wish to be able to call the executable without explicitly define the full PATH while not having to use sudo:
 
 
 ### Open your bashrc file:
@@ -20,11 +20,15 @@ After installing `nextflow`, if you wish to be able to call the executable witho
 ### Then add this line at the end: 
 
 
-`export PATH=$PATH:/home/users/myuser/Softwares/Nextflow`
+`export PATH=$PATH:/home/users/myuser/Softwares/`
+
+### Finally refresh the environment to activate the changes
 
 
+source ~/.bashrc
 
-### Note that the PATH will be unique in your system. In my case I installed nextflow in the folder /Softwares/Nextflow.
+
+### Note that the PATH will be unique in your system. In my case I installed nextflow in the folder /Softwares/
 
 
 ### Then git clone this repository:
