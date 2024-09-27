@@ -307,7 +307,7 @@ process alignment {
 	path reads
 	path panRef, stageAs: 'panGenomeReference.fasta'
 	val threadsGlobal
-	
+	path configFile
 
 	output:
 	path '*_DMC_P.bam', emit: postAlignedBams
@@ -316,24 +316,170 @@ process alignment {
 
 	script:
 	"""
-	for sample in reads/*; do
+	for sample in $reads/*; do
 		bwa index $panRef
 		name=\$(basename "\$sample")
-		bwa aln -l 16500 -n 0.01 -o 2 -t $threadsGlobal $pan_genome_reference.fasta "\$sample" > "\${name%.fastq*}.sai"
-		bwa samse $pan_genome_reference.fasta "\${name%.fastq*}.sai" "\$sample" > "\${name%.fastq*}.sam"
-		samtools view -bS "$output"/ALIGNMENTS/"${name%.fastq*}.sam" > "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
-		samtools quickcheck "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
-		samtools sort -o "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}.bam"
-		samtools index "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam"
-		samtools view -b -@ 10 -F 4 "$output"/ALIGNMENTS/"${name%.fastq*}_sorted.bam" > "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam"
-		samtools index "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam"
-		/miniforge3/envs/alignment/bin/bam trimBam "$output"/ALIGNMENTS/"${name%.fastq*}_sorted_mappedreads.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam" -L "$softclipping" -R "$softclipping" --clip
-		samtools view -q 25 -o "$output"/ALIGNMENTS/"${name%.fastq*}_qc.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_softclipped.bam"
-		samtools view -e 'length(seq)>34' -O BAM -o "$output"/ALIGNMENTS/"${name%.fastq*}_lg.bam" "$output"/ALIGNMENTS/"${name%.fastq*}_qc.bam"
-		samtools sort -o "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" -O bam -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}_lg.bam"
-		samtools coverage "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${name}"_genomicsMetrics.txt
-		samtools fastq -@ "$threads" "$output"/ALIGNMENTS/"${name%.fastq*}_DMC_P.bam" > "$output"/ALIGNMENTS/"${name%.fastq*}_final.fastq"
+		softClip=\$(grep "\$name" $configFile | awk '{print \$2}')
+		bwa aln -l 16500 -n 0.01 -o 2 -t $threadsGlobal $panRef "\$sample" > "\${name%.fastq*}.sai"
+		bwa samse $panRef "\${name%.fastq*}.sai" "\$sample" > "\${name%.fastq*}.sam"
+		samtools view -bS "\${name%.fastq*}.sam" > "\${name%.fastq*}.bam"
+		samtools quickcheck "\${name%.fastq*}.bam"
+		samtools sort -o "\${name%.fastq*}_sorted.bam" -O bam -@ $threadsGlobal "\${name%.fastq*}.bam"
+		samtools index "\${name%.fastq*}_sorted.bam"
+		samtools view -b -@ 10 -F 4 "\${name%.fastq*}_sorted.bam" > "\${name%.fastq*}_sorted_mappedreads.bam"
+		samtools index "\${name%.fastq*}_sorted_mappedreads.bam"
+		bam trimBam "\${name%.fastq*}_sorted_mappedreads.bam" "\${name%.fastq*}_softclipped.bam" -L "\$softClip" -R "\$softClip" --clip
+		samtools view -q 25 -o "\${name%.fastq*}_qc.bam" "\${name%.fastq*}_softclipped.bam"
+		samtools view -e 'length(seq)>34' -O BAM -o "\${name%.fastq*}_lg.bam" "\${name%.fastq*}_qc.bam"
+		samtools sort -o "\${name%.fastq*}_DMC_P.bam" -O bam -@ $threadsGlobal "\${name%.fastq*}_lg.bam"
+		samtools coverage "\${name%.fastq*}_DMC_P.bam" > "\${name}"_genomicsMetrics.txt
+		samtools fastq -@ $threadsGlobal "\${name%.fastq*}_DMC_P.bam" > "\${name%.fastq*}_final.fastq"
 	done
+	"""
+}
+
+
+process alignmentSummary {
+	conda "${projectDir}/envs/alignment.yaml"
+	
+	input:
+	path configFile
+	path bamfiles, stageAs: 'bam/*'
+	
+
+	output:
+        path 'postPangenomeAlignment*bam' , emit: postAlignmentFiles
+	path 'completenessSummary.tab', emit: completenessSummary
+	path '*_refLength.txt', emit: refLenght
+	path '*_rawCoverage.txt' , emit: rawCoverage
+
+
+	script:
+	"""
+	#!/bin/bash
+	awk '{print \$NF}' $configFile | uniq > groups.txt
+
+	while read -r groupID; do
+		groupName=\$(echo "\$groupID")
+		grep -w "\$groupID" $configFile | awk '{print \$1}' > "\$groupName"ID
+	done < groups.txt
+
+        for groupFile in *ID; do
+                IDs=\$(basename "\${groupFile%ID}")
+
+		echo "Group ID: \$IDs"
+
+                bamFiles=()
+
+                while read -r sampleName; do
+                        bamFiles+=(./bam/"\${sampleName%.fastq*}_DMC_P.bam")
+                        echo "Adding BAM file: ./bam/\${sampleName%.fastq*}_DMC_P.bam"
+		done < "\$groupFile"
+
+                if [ \${#bamFiles[@]} -eq 1 ]; then
+                        cp "\${bamFiles[0]}" postPangenomeAlignment_"\${IDs}".bam
+                elif [ \${#bamFiles[@]} -gt 1 ]; then
+                        samtools merge postPangenomeAlignment_mergedGroup"\${IDs}".bam "\${bamFiles[@]}"
+                fi
+        done
+
+        for i in postPangenomeAlignment*bam; do
+                samplename=\$(basename ./bam/"\${i%.bam}")
+                samtools index "\$i"
+                samtools depth -a "\$i" > "\${samplename}_rawCoverage.txt"
+                samtools idxstats "\$i" | awk '{sum += \$2} END {print sum}' > "\${samplename}_refLength.txt"
+                samtools coverage "\$i" | awk -v samplename="\$samplename" 'NR>1 {print samplename, \$1, \$6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t \$'\t' >> completenessSummary.tab
+        done
+	"""
+}
+
+process normalizationFunction {
+
+	input:
+	path refLength, stageAs: 'refLength/*'
+	path rawCoverage, stageAs: 'rawCoverage/*'
+
+
+	output:
+	path 'geneNormalizedSummary.txt', emit: geneNormalizedSummary
+	path 'globalMeanCoverage.txt' , emit: globalMeanCoverage
+
+	script:
+	"""
+	#!/bin/bash
+
+	echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled" > geneNormalizedSummary.txt
+	echo -e "sampleID \t sampleCoverage \t refCount \t globalMean"  > globalMeanCoverage.txt
+
+	for i in rawCoverage/*_rawCoverage.txt; do
+		name=\$(basename "\${i%_rawCoverage.txt}")
+
+		#Compute global mean coverage
+		globalMean=\$(awk -v name="\$name" '{sum += \$3; count++} END {if (count > 0) print sum / count; else print "Something went wrong, check log file"}' "\$i")
+		finalCount=\$(awk -v name="\$name" '{fcount++} END {print fcount}' "\$i")
+		refCount=\$(cat refLength/"\${name}_refLength.txt")
+		echo -e "\$name\t\$finalCount\t\$refCount\t\$globalMean" >> globalMeanCoverage.txt
+
+		#Normalize coverage per gene
+		awk -v globalMean="\$globalMean" -v name="\$name" -v sampleCoverage="\$finalCount" -v refCount="\$refCount" '
+			{
+			if (\$2 > geneLength[\$1]) {
+				geneLength[\$1] = \$2
+			}
+			sumgene[\$1] += \$3
+			countgene[\$1]++
+			}
+		END {
+			for (gene in geneLength) {
+				geneMean = sumgene[gene] / countgene[gene]
+				normalizedGeneScaled = (geneMean / globalMean) * geneLength[gene]
+				normalizedGeneSimple = (geneMean / globalMean)
+				normalizedGenomeSimple = (geneMean / globalMean) * (geneLength[gene] / sampleCoverage)
+				normalizedGenomeScaled = (geneMean / globalMean) * (geneLength[gene] / refCount)
+				print name"\t"gene"\t"normalizedGeneSimple"\t"normalizedGeneScaled"\t"normalizedGenomeSimple"\t"normalizedGenomeScaled
+			}
+		}
+		' "\$i" >> geneNormalizedSummary.txt
+	done
+	"""
+}
+
+process updateNormalization {
+
+	input:
+	path normalized, stageAs: 'normalized/*'
+	path completeness, stageAs: 'completeness/*'
+
+
+	output:
+	path 'geneNormalizedUpdated.tab', emit: geneNormalizedUpdated
+
+
+	script:
+	"""
+	#!/bin/bash
+	echo -e "sampleID\tgene\tnormalizedGeneSimple\tnormalizedGeneScaled\tnormalizedGenomeSimple\tnormalizedGenomeScaled\tgeneCompleteness" > geneNormalizedUpdated.tab
+
+	sed -i -e 's/~/_/g' normalized/geneNormalizedSummary.txt
+
+	awk 'NR>1{print \$1"XYZ"\$2, \$3, \$4, \$5, \$6}' normalized/geneNormalizedSummary.txt > TMP1
+
+	awk '{print \$1"XYZ"\$2, \$3}' completeness/completenessSummary.tab > TMP2
+
+	while read -r ID completeness;do
+
+		if grep -wq "\${ID}" TMP1; then
+			oldLine=\$(grep -w "\${ID}" TMP1)
+			specificCompleteness=\$(grep -w "\${ID}" TMP2 | awk '{print \$NF}')
+			echo -e "\${oldLine}\t\${specificCompleteness}" >> geneNormalizedUpdated.tab
+		fi
+
+	done < TMP2
+
+	sed -i -e 's/XYZ/\t/g' geneNormalizedUpdated.tab
+	sed -i -e 's/ /\t/g' geneNormalizedUpdated.tab
+
+	rm TMP1 TMP2 
 	"""
 }
 
@@ -347,5 +493,8 @@ workflow {
 	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, unzipFiles.out.gffFiles, unzipFiles.out.fastaFiles)
 	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
 	formattingPangenome(makePangenome.out.panSequence)
-	alignment(reads, formattingPangenome.out.panGenomeReference, threadsGlobal,  )
+	alignment(reads, formattingPangenome.out.panGenomeReference, threadsGlobal, configFile)
+	alignmentSummary(configFile, alignment.out.postAlignedBams)
+	normalizationFunction(alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage)
+	updateNormalization(normalizationFunction.out.geneNormalizedSummary, alignmentSummary.out.completenessSummary)
 }
