@@ -13,6 +13,10 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from scipy.cluster.hierarchy import linkage, dendrogram
+import matplotlib
+sys.setrecursionlimit(2000)
+import fastcluster
+matplotlib.use('Agg')
 
 
 '''
