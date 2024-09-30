@@ -1,7 +1,5 @@
 name: entrez
-channels:  
-- bioconda  
-- conda-forge  
-- defaults
-dependencies:  
-- entrez-direct
+channels:
+  - bioconda
+dependencies:
+  - entrez-direct
