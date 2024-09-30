@@ -1,0 +1,8 @@
+name: seqtk
+channels:  
+- bioconda  
+- anaconda
+- conda-forge  
+- defaults
+dependencies:  
+- seqtk
