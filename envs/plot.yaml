@@ -1,0 +1,9 @@
+name: plot
+channels:
+- anaconda
+- conda-forge
+- defaults
+dependencies:
+- pandas
+- seaborn
+- matplotlib
