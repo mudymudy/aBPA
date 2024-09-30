@@ -1,0 +1,12 @@
+name: heatmap
+channels:
+- anaconda
+- conda-forge
+- defaults
+dependencies:
+- pandas
+- seaborn
+- matplotlib
+- numpy
+- scipy
+- fastcluster
