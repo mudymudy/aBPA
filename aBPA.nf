@@ -492,7 +492,7 @@ process updateNormalization {
 process applyCoverageBounds {
 	
 	input:
-	path geneNormalizedUpdated, stageAs: geneNormalizedUpdated.tab
+	path geneNormalizedUpdated, stageAs: 'geneNormalizedUpdated.tab'
 	val normalizedCoverageDown
 	val normalizedCoverageUp
 
@@ -501,8 +501,8 @@ process applyCoverageBounds {
 
 	script:
 	"""
-	awk -v UpBound="\$normalizedCoverageUp" '$3 < \$UpBound {print $0}' geneNormalizedUpdated.tab > TMP1
-	awk -v DownBound="\$normalizedCoverageDown" '$3 > \$DownBound {print $0}' TMP1 > geneNormalizedUpdatedFiltered.tab
+	awk -v UpBound="\$normalizedCoverageUp" '\$3 < \$UpBound {print \$0}' $geneNormalizedUpdated > TMP1
+	awk -v DownBound="\$normalizedCoverageDown" '\$3 > \$DownBound {print \$0}' TMP1 > geneNormalizedUpdatedFiltered.tab
 	"""
 }
 
