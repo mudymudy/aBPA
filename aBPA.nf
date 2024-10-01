@@ -9,8 +9,11 @@ resultsDir = Channel.of(params.output)
 params.gcompleteness = 50
 geneCompleteness = Channel.of(params.gcompleteness)
 
-params.coverage = 0.5
-normalizedCoverage = Channel.of(params.coverage)
+params.coverageDown = 0.5
+normalizedCoverageDown = Channel.of(params.coverageDown)
+
+params.coverageUp = 4
+normalizedCoverageUp = Channel.of(params.coverageUp)
 
 params.threads = 10
 threadsGlobal = Channel.of(params.threads)
@@ -326,6 +329,7 @@ process alignment {
 		samtools quickcheck "\${name%.fastq*}.bam"
 		samtools sort -o "\${name%.fastq*}_sorted.bam" -O bam -@ $threadsGlobal "\${name%.fastq*}.bam"
 		samtools index "\${name%.fastq*}_sorted.bam"
+		rm "\${name%.fastq*}.bam"
 		samtools view -b -@ 10 -F 4 "\${name%.fastq*}_sorted.bam" > "\${name%.fastq*}_sorted_mappedreads.bam"
 		samtools index "\${name%.fastq*}_sorted_mappedreads.bam"
 		bam trimBam "\${name%.fastq*}_sorted_mappedreads.bam" "\${name%.fastq*}_softclipped.bam" -L "\$softClip" -R "\$softClip" --clip
@@ -335,6 +339,8 @@ process alignment {
 		samtools coverage "\${name%.fastq*}_DMC_P.bam" > "\${name}"_genomicsMetrics.txt
 		samtools fastq -@ $threadsGlobal "\${name%.fastq*}_DMC_P.bam" > "\${name%.fastq*}_final.fastq"
 	done
+
+	rm *sam *sai *_lg.bam *_qc.bam *_sorted_mappedreads.bam*
 	"""
 }
 
@@ -553,7 +559,13 @@ process buildHeatmap {
 
 	output:
 	path 'final_matrix.tab', emit: finalMatrix
-	path 'presence_absence.png', emit: presenceAbsence
+	path 'presenceAbsence*.png', emit: presenceAbsence
+	path 'maskedMatrixGenesOnlyAncient.txt', emit: maskedMatrixGenesOnlyAncient
+	path 'maskedMatrixGenesUbiquitous.txt', emit: maskedMatrixGenesUbiquitous
+	path 'maskedMatrixGenesNoUbiquitous.txt', emit: maskedMatrixGenesNoUbiquitous
+	path 'sampleOrdernoUbiquitous.txt', emit: sampleOrdernoUbiquitous 
+	path 'sampleOrderonlyAncient.txt', emit: sampleOrderonlyAncient
+
 	
 	script:
 	"""
@@ -594,6 +606,28 @@ process buildHeatmap {
 }
 
 
+process makeConsensus {
+	conda "${projectDir}/envs/consensus.yaml"
+
+	input:
+	path panGenomeRef, stageAs: 'panGenomeRef.fasta'
+	path bamFiles, stageAs: 'BAM/*'
+
+	output:
+	path 'extractedSequences*.fq', emit: extractedSequencesReads 
+	path 'extractedSequences*.fasta', emit: extractedSequencesFasta
+
+	script:
+	"""
+	for b in BAM/*; do
+		basename=\$(basename "\$b")
+		bcftools mpileup -f $panGenomeRef "\$b" | bcftools call -c | vcfutils.pl vcf2fq > extractedSequences"\${basename%.bam}".fq
+		seqtk seq -a extractedSequences"\${basename%.bam}".fq > extractedSequences"\${basename%.bam}".fasta
+	done
+	"""
+}
+
+
 workflow {
 	dirStructure(resultsDir)
 	dwnld = entrez(downloadGenomes, taxID, resultsDir)
@@ -607,7 +641,8 @@ workflow {
 	alignmentSummary(configFile, alignment.out.postAlignedBams)
 	normalizationFunction(alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage)
 	updateNormalization(normalizationFunction.out.geneNormalizedSummary, alignmentSummary.out.completenessSummary)
-	plotCoveragevsCompleteness(updateNormalization.out.geneNormalizedUpdated, geneCompleteness, normalizedCoverage)
+	plotCoveragevsCompleteness(updateNormalization.out.geneNormalizedUpdated, geneCompleteness, normalizedCoverageDown)
 	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, updateNormalization.out.geneNormalizedUpdated)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
+	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 }
