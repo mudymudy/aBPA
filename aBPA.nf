@@ -501,7 +501,8 @@ process applyCoverageBounds {
 
 	script:
 	"""
-
+	awk -v UpBound="\$normalizedCoverageUp" '$3 < \$UpBound {print $0}' geneNormalizedUpdated.tab > TMP1
+	awk -v DownBound="\$normalizedCoverageDown" '$3 > \$DownBound {print $0}' TMP1 > geneNormalizedUpdatedFiltered.tab
 	"""
 }
 
@@ -521,6 +522,32 @@ process plotCoveragevsCompleteness {
 	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $gcompleteness $coverage
 	"""
 }
+
+
+
+
+
+process plotCoveragevsCompletenessOnFiltered {
+	conda "${projectDir}/envs/plot.yaml"
+	
+	input:
+	path geneNormalizedUpdated, stageAs: 'gNS/'
+	val gcompleteness
+	val coverage
+
+	output:
+	path 'plotCoverage_vs_Completeness.png', emit: plotCoverage_vs_Completeness
+	
+	script:
+	"""
+	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $gcompleteness $coverage
+	"""
+}
+
+
+
+
+
 
 
 process makeMatrix {
@@ -660,4 +687,5 @@ workflow {
 	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, updateNormalization.out.geneNormalizedUpdated)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
+	applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp)
 }
