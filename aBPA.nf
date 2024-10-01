@@ -495,14 +495,18 @@ process applyCoverageBounds {
 	path geneNormalizedUpdated, stageAs: 'geneNormalizedUpdated.tab'
 	val normalizedCoverageDown
 	val normalizedCoverageUp
+	val completenessBound
 
 	output:
 	path 'geneNormalizedUpdatedFiltered.tab', emit: geneNormalizedUpdatedFiltered
 
 	script:
 	"""
-	awk -v UpBound="\$normalizedCoverageUp" '\$3 < \$UpBound {print \$0}' $geneNormalizedUpdated > TMP1
-	awk -v DownBound="\$normalizedCoverageDown" '\$3 > \$DownBound {print \$0}' TMP1 > geneNormalizedUpdatedFiltered.tab
+	awk 'NR==1{print \$0}' $geneNormalizedUpdated > header
+	awk -v UpBound=$normalizedCoverageUp '\$3 < UpBound {print \$0}' $geneNormalizedUpdated > TMP1
+	awk -v DownBound=$normalizedCoverageDown '\$3 > DownBound {print \$0}' TMP1 > TMP2
+	awk -v completenessBound=$completenessBound '\$NF> completenessBound {print \$0}' TMP2 > TMP3
+	cat header TMP3 > geneNormalizedUpdatedFiltered.tab
 	"""
 }
 
@@ -531,16 +535,17 @@ process plotCoveragevsCompletenessOnFiltered {
 	conda "${projectDir}/envs/plot.yaml"
 	
 	input:
-	path geneNormalizedUpdated, stageAs: 'gNS/'
+	path geneNormalizedUpdatedFiltered, stageAs: 'gNS/*'
 	val gcompleteness
 	val coverage
 
 	output:
-	path 'plotCoverage_vs_Completeness.png', emit: plotCoverage_vs_Completeness
+	path 'plotCoverageVsCompletenessFiltered.png', emit: plotCoverageVsCompletenessFiltered
 	
 	script:
 	"""
-	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $gcompleteness $coverage
+	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdatedFiltered.tab $gcompleteness $coverage
+	mv plotCoverage_vs_Completeness.png ./plotCoverageVsCompletenessFiltered.png
 	"""
 }
 
@@ -687,5 +692,6 @@ workflow {
 	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, updateNormalization.out.geneNormalizedUpdated)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
-	applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp)
+	applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp, geneCompleteness)
+	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
 }
