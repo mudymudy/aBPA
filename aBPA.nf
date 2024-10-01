@@ -549,12 +549,6 @@ process plotCoveragevsCompletenessOnFiltered {
 	"""
 }
 
-
-
-
-
-
-
 process makeMatrix {
 	conda "${projectDir}/envs/plot.yaml"
 
@@ -580,7 +574,7 @@ process makeMatrix {
 	while read -r name; do
 
 		echo -e "Gene\tnormalizedCoverage\tcompleteness" > "\${name}"_index.tmp
-		grep -w "\$name" normalized/geneNormalizedUpdated.tab | awk '{print \$2, \$3, \$NF}' >> "\${name}"_index.tmp
+		grep -w "\$name" normalized/geneNormalizedUpdatedFiltered.tab | awk '{print \$2, \$3, \$NF}' >> "\${name}"_index.tmp
 
 	done < sample_names
 
@@ -689,9 +683,9 @@ workflow {
 	normalizationFunction(alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage)
 	updateNormalization(normalizationFunction.out.geneNormalizedSummary, alignmentSummary.out.completenessSummary)
 	plotCoveragevsCompleteness(updateNormalization.out.geneNormalizedUpdated, geneCompleteness, normalizedCoverageDown)
-	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, updateNormalization.out.geneNormalizedUpdated)
+        applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp, geneCompleteness)
+	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, applyCoverageBounds.out.geneNormalizedUpdatedFiltered)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
-	applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp, geneCompleteness)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
 }
