@@ -16,13 +16,12 @@ from scipy.cluster.hierarchy import linkage, dendrogram
 import matplotlib
 sys.setrecursionlimit(2000)
 import fastcluster
-matplotlib.use('Agg')
-
 
 '''
 data = the final matrix
 names = unique_names. This is so we can detect the actual samples in the dataset and do things
 '''
+matplotlib.use('Agg')
 
 data=sys.argv[1]
 namesfile=sys.argv[2]
@@ -36,6 +35,8 @@ with open(data, 'r') as file:
         matrix = pd.read_csv(data, sep='\t')
         print("matrix.tab file loaded successfully into python.")
         print(matrix.head())
+
+matrix = matrix.set_index(matrix.columns[0]) 
 
 
 """
@@ -76,7 +77,14 @@ maskedMatrixGenesUbiquitous_series.to_csv("maskedMatrixGenesUbiquitous.txt", sep
 
 num_samples = matrix.shape[1]
 threshold = 0.8 * num_samples
-genes_above_80_percent = matrix[(matrix.sum(axis=1) >= threshold)]
+genesAbovePercent = matrix[(matrix.sum(axis=1) >= threshold)]
+genesAbovePercentIndex = genesAbovePercent.index
+genesAbovePercentSeries = pd.Series(genesAbovePercentIndex, name="Genes")
+genesAbovePercentSeries.to_csv("genesAbovePercentSeries.txt", sep="\t", index=False, header=False)
+
+
+
+
 '''
 I NEED TO IMPLEMENT THIS IN A WAY THAT IT WILL DETECT THE ACTUAL SAMPLES
 
@@ -90,6 +98,8 @@ filtered_matrix_05 = matrix_05[~mask_05]
 
 '''
 
+
+
 def create_clustered_heatmap(data, names, label):
     """
     Creates a clustered heatmap with the specified formatting and customization.
@@ -102,7 +112,7 @@ def create_clustered_heatmap(data, names, label):
     """
     ancient_strains = names
 
-    plt.figure(figsize=(40, 100), dpi=1000)
+    plt.figure(figsize=(50, 120), dpi=1000)
 
     sns.set(font_scale=1)
 
@@ -117,7 +127,7 @@ def create_clustered_heatmap(data, names, label):
         cmap=cmap, 
         method="complete", 
         metric='euclidean', 
-        figsize=(40, 100), 
+        figsize=(50, 120), 
         tree_kws=line_kws, 
         dendrogram_ratio=(0.25, 0.25)
     )
@@ -168,13 +178,21 @@ def create_clustered_heatmap(data, names, label):
     #Find positions of ancient strains and extend to include neighbors
     ancient_strains_pos = extend_positions([column_to_position[col] for col in ancient_strains if col in column_to_position], data.shape)
     plot_lines(ancient_strains_pos, 'blue')
+    
+    ordered_columns_indices = clustered_heatmap.dendrogram_col.reordered_ind
+    sampleOrder = data.columns[ordered_columns_indices]
 
-    #Add vertical line at position 0
+    sampleOrder_series =  pd.Series(sampleOrder, name="Species")
+    sampleOrder_series.to_csv(f"sampleOrder{label}.txt", sep="\t", index=False, header=False)
+    
+
+    #Add vertical line at position 0, NOT ANYMORE
     #clustered_heatmap.ax_heatmap.axvline(x=0, color='blue', linewidth=3)
-    plt.savefig(f"presenceAbsenceMatrix{label}.png") 
+    plt.savefig(f"presenceAbsenceMatrix{label}.png",bbox_inches='tight') 
+    plt.tight_layout()
     plt.show()
 
 
 create_clustered_heatmap(maskedMatrixNoUbiquitous, names, "noUbiquitous")
 create_clustered_heatmap(maskedOnlyAncient, names, "onlyAncient")
-
+create_clustered_heatmap(genesAbovePercent, names, "abovePercent")
