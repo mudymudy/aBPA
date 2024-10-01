@@ -489,6 +489,21 @@ process updateNormalization {
 	"""
 }
 
+process applyCoverageBounds {
+	
+	input:
+	path geneNormalizedUpdated, stageAs: geneNormalizedUpdated.tab
+	val normalizedCoverageDown
+	val normalizedCoverageUp
+
+	output:
+	path 'geneNormalizedUpdatedFiltered.tab', emit: geneNormalizedUpdatedFiltered
+
+	script:
+	"""
+
+	"""
+}
 
 process plotCoveragevsCompleteness {
 	conda "${projectDir}/envs/plot.yaml"
