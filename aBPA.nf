@@ -669,6 +669,39 @@ process makeConsensus {
 }
 
 
+/*
+ * First seqtk seq every gene.aln file, and then fix FASTA header.
+ */
+
+
+process filterGeneAlignments {
+	conda "${projectDir}/envs/seqtk.yaml"
+
+	input:
+	path genesAln, stageAs: 'genes/*'
+
+	output:
+	path '*AlnSeq.fasta', emit: genesAlnSeq
+
+
+	script:
+	"""
+	for file in genes/*; do
+		name=\$(basename "\${file%.aln.fas}")
+		seqtk seq "\${file}" > TMP"\${name}"
+		awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
+		rm TMP"\$name"
+	done
+	"""
+}
+
+
+/*   # Add individual gene sequences to these particular gene.aln files
+ *   # To do this we need: If there is one or more samples missing in any particular gene.aln file, then we get the gene lenght and we add Ns.
+ *   # At the end , we will have every gene.aln file filled with every sample. So we can now concatenate every gene.aln file based on INDEX.
+ */
+
+
 workflow {
 	dirStructure(resultsDir)
 	dwnld = entrez(downloadGenomes, taxID, resultsDir)
@@ -688,4 +721,5 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs)
 }
