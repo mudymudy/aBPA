@@ -670,7 +670,8 @@ process makeConsensus {
 
 
 /*
- * First seqtk seq every gene.aln file, and then fix FASTA header.
+ * First seqtk seq every gene.aln file, and then fix FASTA header. Add samples gene sequences to the right alignments. check sequence lenght and fill with Ns if lenght smaller than modern strains.
+ * Finally check number of FASTA headers and if not == to $genomes then add the missing and fill sequence with Ns.
  */
 
 
@@ -679,6 +680,7 @@ process filterGeneAlignments {
 
 	input:
 	path genesAln, stageAs: 'genes/*'
+        path extractedSequencesFasta, stageAs: 'sampleGenes/*'
 
 	output:
 	path '*AlnSeq.fasta', emit: genesAlnSeq
@@ -686,20 +688,99 @@ process filterGeneAlignments {
 
 	script:
 	"""
-	for file in genes/*; do
+	for file in genes/*.aln.fas; do
 		name=\$(basename "\${file%.aln.fas}")
 		seqtk seq "\${file}" > TMP"\${name}"
 		awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
 		rm TMP"\$name"
 	done
+
+        for file in genes/*.fasta; do
+                name=\$(basename "\${file%.fasta}")
+                seqtk seq "\${file}" > TMP"\${name}"
+                awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
+                rm TMP"\$name"
+        done
+
+        for i in *_AlnSeq.fasta; do
+                name=\$(basename "\${i%_AlnSeq.fasta}")
+
+                for sample in sampleGenes/*; do
+
+                        sampleName=\$(basename "\${sample%.fasta}")
+
+                        grep -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
+                done
+        done
+
+	for i in *_AlnSeq.fasta; do
+
+		numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$i" | wc | awk '{print \$NF}')
+		echo "\$numberOfColumns"
+
+		awk -v numCols="\$numberOfColumns" '{
+			if (\$0 ~ /^>/) {
+				print
+			} else {
+			while ( length(\$0) < numCols - 1) {
+				\$0 = \$0 "n"
+			}
+			print
+			}
+		}' "\$i" > tmp && mv tmp "\${i}"
+	done
+	
+	# I need to make a file with every sample name, including downloaded strains and user samples.
+	ls -l -A | awk -F'/' 'NR>1{print \$NF}' sampleGenes/ > sampleNames.txt
+
+
+	for i in *_AlnSeq.fasta; do
+		numberOfIndividuals=\$(awk '/^>/ {print \$0}' "\$i" | wc -l)
+		
+	done
 	"""
 }
 
 
-/*   # Add individual gene sequences to these particular gene.aln files
- *   # To do this we need: If there is one or more samples missing in any particular gene.aln file, then we get the gene lenght and we add Ns.
- *   # At the end , we will have every gene.aln file filled with every sample. So we can now concatenate every gene.aln file based on INDEX.
+/*   Add individual gene sequences to these particular gene.aln files
+ *   To do this we need: If there is one or more samples missing in any particular gene.aln file, then we get the gene lenght and we add Ns.
+ *   At the end , we will have every gene.aln file filled with every sample. So we can now concatenate every gene.aln file based on INDEX.
  */
+
+
+
+process makeMSA {
+
+	input:
+
+
+
+	output:
+
+
+	script:
+	"""
+
+
+	"""
+}
+
+
+process pMauve {
+	conda "${projectDir}/envs/pMauve.yaml"
+
+	input:
+	path fastaFile, stageAs: 'FASTA/*'
+
+	output:
+
+
+	script:
+	"""
+	progressiveMauve --output-guide-tree=pMauveTree --output=test FASTA/*
+	"""
+}
+
 
 
 workflow {
@@ -721,5 +802,5 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta)
 }
