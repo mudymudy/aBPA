@@ -681,10 +681,12 @@ process filterGeneAlignments {
 	input:
 	path genesAln, stageAs: 'genes/*'
         path extractedSequencesFasta, stageAs: 'sampleGenes/*'
+	path fFiles, stageAs: 'FNA/*'
+	val genomes
 
 	output:
 	path '*AlnSeq.fasta', emit: genesAlnSeq
-
+	path 'sampleNames.txt', emit: sampleNames
 
 	script:
 	"""
@@ -703,13 +705,12 @@ process filterGeneAlignments {
         done
 
         for i in *_AlnSeq.fasta; do
-                name=\$(basename "\${i%_AlnSeq.fasta}")
+                name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 
                 for sample in sampleGenes/*; do
-
-                        sampleName=\$(basename "\${sample%.fasta}")
-
-                        grep -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
+			sed -i -e 's/~/_/g' "\$sample"
+			sampleName=\$(basename "\${sample%.fasta}")
+                        grep -w -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
                 done
         done
 
@@ -730,13 +731,34 @@ process filterGeneAlignments {
 		}' "\$i" > tmp && mv tmp "\${i}"
 	done
 	
-	# I need to make a file with every sample name, including downloaded strains and user samples.
-	ls -l -A | awk -F'/' 'NR>1{print \$NF}' sampleGenes/ > sampleNames.txt
 
+	for i in FNA/*.fna; do
+		fnames=\$(basename "\${i%_genomic.fna}")
+		echo "\${fnames}" >> sampleNames.txt
+	done
 
-	for i in *_AlnSeq.fasta; do
-		numberOfIndividuals=\$(awk '/^>/ {print \$0}' "\$i" | wc -l)
+	for sample in sampleGenes/*; do
+
+		sampleName=\$(basename "\${sample%.fasta}")
+		echo "\${sampleName}" >> sampleNames.txt
+	done
+
+	for file in *_AlnSeq.fasta ; do
+
+		sampleValue=\$(awk '/^>/ {print \$0}' "\$file" | wc -l)
+                numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$file" | wc | awk '{print \$NF}')
+		totalSamples=\$(wc -l < sampleNames.txt)
 		
+		if (( sampleValue < totalSamples)); then
+			
+			while read -r strain; do
+				if ! grep -wq "\$strain" "\$file"; then
+					echo ">\$strain" >> "\$file"
+					fakeSeq=\$(printf 'n%.0s' \$(seq 1 \$(( numberOfColumns -1 ))))
+					echo "\$fakeSeq" >> "\$file"
+				fi 
+			done < sampleNames.txt
+		fi
 	done
 	"""
 }
@@ -802,5 +824,5 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, unzipFiles.out.fastaFiles, downloadGenomes)
 }
