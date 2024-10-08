@@ -783,6 +783,10 @@ process makeMSA {
 
 	output:
 	path 'genesAbovePercentMSA.fasta', emit: genesAbovePercentMSA
+	path 'maskedMatrixGenesNoUbiquitousMSA.fasta', emit: maskedMatrixGenesNoUbiquitousMSA
+	path 'maskedMatrixGenesOnlyAncientMSA.fasta', emit: maskedMatrixGenesOnlyAncientMSA
+	path 'maskedMatrixGenesUbiquitousMSA.fasta', emit: maskedMatrixGenesUbiquitousMSA
+	path 'specialCases/*fasta', emit: specialCases
 
 	script:
 	"""
@@ -891,6 +895,66 @@ process pMauve {
 	"""
 }
 
+process treeThreshold {
+	conda "${projectDir}/envs/iqtree.yaml"
+	
+	input:
+	path genesMSA, stageAs: 'genesAbovePercentMSA.fasta'
+
+	output:
+	stdout
+
+	script:
+	"""
+	iqtree -s genesAbovePercentMSA.fasta --prefix genesAbovePercentMSA -T 10 -B 1000 -m MFP 
+	"""
+}
+
+process treeUbiquitous {
+        conda "${projectDir}/envs/iqtree.yaml"
+        
+        input:
+        path ubiquitousMSA, stageAs: 'maskedMatrixGenesUbiquitousMSA.fasta'
+
+        output:
+        stdout
+
+        script:
+        """
+        iqtree -s maskedMatrixGenesUbiquitousMSA.fasta --prefix maskedMatrixGenesUbiquitousMSA -T 10 -B 1000 -m MFP
+        """
+}
+
+process treeNoUbiquitous {
+        conda "${projectDir}/envs/iqtree.yaml"
+        
+        input:
+        path noUbiquitousMSA, stageAs: 'maskedMatrixGenesUbiquitousMSA.fasta'
+
+        output:
+        stdout
+
+        script:
+        """
+        iqtree -s maskedMatrixGenesUbiquitousMSA.fasta --prefix maskedMatrixGenesUbiquitousMSA -T 10 -B 1000 -m MFP
+        """
+}
+
+
+process treeAncient {
+        conda "${projectDir}/envs/iqtree.yaml"
+        
+        input:
+        path ancientMSA, stageAs: 'maskedMatrixGenesOnlyAncientMSA.fasta'
+
+        output:
+        stdout
+
+        script:
+        """
+        iqtree -s maskedMatrixGenesOnlyAncientMSA.fasta --prefix maskedMatrixGenesOnlyAncientMSA -T 10 -B 1000 -m MFP
+        """
+}
 
 
 workflow {
@@ -915,4 +979,8 @@ workflow {
 	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, unzipFiles.out.fastaFiles, downloadGenomes)
 	pMauve(unzipFiles.out.fastaFiles)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
+	treeThreshold(makeMSA.out.genesAbovePercentMSA)
+	treeUbiquitous(makeMSA.out.maskedMatrixGenesUbiquitousMSA)
+	treeNoUbiquitous(makeMSA.out.maskedMatrixGenesNoUbiquitousMSA)
+	treeAncient(makeMSA.out.maskedMatrixGenesOnlyAncientMSA)
 }
