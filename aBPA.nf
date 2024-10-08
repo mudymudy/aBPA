@@ -606,7 +606,7 @@ process buildHeatmap {
 	path 'maskedMatrixGenesNoUbiquitous.txt', emit: maskedMatrixGenesNoUbiquitous
 	path 'sampleOrdernoUbiquitous.txt', emit: sampleOrdernoUbiquitous 
 	path 'sampleOrderonlyAncient.txt', emit: sampleOrderonlyAncient
-
+	path 'genesAbovePercentSeries.txt', emit: genesAbovePercentSeries
 	
 	script:
 	"""
@@ -774,15 +774,101 @@ process filterGeneAlignments {
 process makeMSA {
 
 	input:
-
-
+	path genesAlnSeq, stageAs: 'genes/*'
+	path maskedMatrixGenesNoUbiquitous, stageAs: 'maskedMatrixGenesNoUbiquitous.txt'
+	path maskedMatrixGenesOnlyAncient, stageAs: 'maskedMatrixGenesOnlyAncient.txt'
+	path maskedMatrixGenesUbiquitous, stageAs: 'maskedMatrixGenesUbiquitous.txt'
+	path genesAbovePercentSeries, stageAs: 'genesAbovePercentSeries.txt'
+	path sampleNames, stageAs: 'sampleNames.txt'
 
 	output:
-
+	path 'genesAbovePercentMSA.fasta', emit: genesAbovePercentMSA
 
 	script:
 	"""
+	#!/bin/bash
+	for gene in genes/*; do
+		geneName=\$(basename "\$gene" | sed -e 's/~/_/g')
+		sed -i -e 's/~/_/g' "\$gene"
+		mv "\$gene" genes/"\${geneName%_AlnSeq.fasta*}.fasta"	
+	done
 
+	for txtFile in *txt; do
+		sed -i -e 's/~/_/g' "\$txtFile"
+	done
+
+	mkdir -p specialCases
+
+	for file in genes/*fasta; do
+		value=\$(awk '/^>/ {print \$0}' "\$file" | wc -l)
+		sampleN=\$(wc -l < sampleNames.txt)
+		if [ \$value -ne \$sampleN ]; then
+			mv "\$file" specialCases/
+		fi
+	done
+	
+
+	mkdir -p filteredGenes
+	
+	for i in genes/*; do
+		geneName=\$(basename "\$i")
+		samplesPresent=true
+		while read -r sample; do
+			if ! grep -wq "\$sample" "\$i"; then
+				samplesPresent=false
+			else
+				grep -w -A 1 "\$sample" "\$i" >> filteredGenes/"\${geneName%.fasta}_Filtered.fasta"	
+			fi
+		done < sampleNames.txt
+		
+		if [ "\$samplesPresent" = false ]; then
+			mv "\$i" specialCases/
+		fi
+	done
+
+	touch genesAbovePercentMSA.fasta
+	touch maskedMatrixGenesUbiquitousMSA.fasta
+	touch maskedMatrixGenesOnlyAncientMSA.fasta
+	touch maskedMatrixGenesNoUbiquitousMSA.fasta
+
+	
+	while read -r gene; do
+		
+		paste genesAbovePercentMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMP; mv TMP genesAbovePercentMSA.fasta
+	
+	done < genesAbovePercentSeries.txt
+	
+	sed -i -e 's/\t//g' genesAbovePercentMSA.fasta
+	awk -F'>' '/^>/ {print ">" \$2} !/^>/' genesAbovePercentMSA.fasta > TMPg; mv TMPg genesAbovePercentMSA.fasta
+	
+
+        while read -r gene; do
+
+                paste maskedMatrixGenesNoUbiquitousMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMP2; mv TMP2 maskedMatrixGenesNoUbiquitousMSA.fasta
+
+        done < maskedMatrixGenesNoUbiquitous.txt
+
+        sed -i -e 's/\t//g' maskedMatrixGenesNoUbiquitousMSA.fasta
+        awk -F'>' '/^>/ {print ">" \$2} !/^>/' maskedMatrixGenesNoUbiquitousMSA.fasta > TMPnU; mv TMPnU maskedMatrixGenesNoUbiquitousMSA.fasta
+
+
+        while read -r gene; do
+
+                paste maskedMatrixGenesOnlyAncientMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMPo; mv TMPo maskedMatrixGenesOnlyAncientMSA.fasta
+
+        done < maskedMatrixGenesOnlyAncient.txt
+
+        sed -i -e 's/\t//g' maskedMatrixGenesOnlyAncientMSA.fasta
+        awk -F'>' '/^>/ {print ">" \$2} !/^>/' maskedMatrixGenesOnlyAncientMSA.fasta > TMPo2; mv TMPo2 maskedMatrixGenesOnlyAncientMSA.fasta
+
+        while read -r gene; do
+
+                paste maskedMatrixGenesUbiquitousMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMPU; mv TMPU maskedMatrixGenesUbiquitousMSA.fasta
+
+        done < maskedMatrixGenesUbiquitous.txt
+
+        sed -i -e 's/\t//g' maskedMatrixGenesUbiquitousMSA.fasta
+        awk -F'>' '/^>/ {print ">" \$2} !/^>/' maskedMatrixGenesUbiquitousMSA.fasta > TMPU2; mv TMPU2 maskedMatrixGenesUbiquitousMSA.fasta
 
 	"""
 }
@@ -792,14 +878,16 @@ process pMauve {
 	conda "${projectDir}/envs/pMauve.yaml"
 
 	input:
-	path fastaFile, stageAs: 'FASTA/*'
+	path gffFiles, stageAs: '*'
 
 	output:
+	path 'pMauveAlignment', emit: pMauveAlignment
+	path 'pMauveAlignment.b*', emit: pMauveAdditionalOutputs
 
 
 	script:
 	"""
-	progressiveMauve --output-guide-tree=pMauveTree --output=test FASTA/*
+	progressiveMauve  --output=pMauveAlignment *
 	"""
 }
 
@@ -825,4 +913,6 @@ workflow {
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
 	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, unzipFiles.out.fastaFiles, downloadGenomes)
+	pMauve(unzipFiles.out.fastaFiles)
+	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 }
