@@ -693,7 +693,8 @@ process filterGeneAlignments {
         path extractedSequencesFasta, stageAs: 'sampleGenes/*'
 	path fFiles, stageAs: 'FNA/*'
 	val genomes
-
+	path outgroupSeq, stageAs: 'outgroup'
+	
 	output:
 	path '*AlnSeq.fasta', emit: genesAlnSeq
 	path 'sampleNames.txt', emit: sampleNames
@@ -721,7 +722,11 @@ process filterGeneAlignments {
 	
 
 	# Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments.
-	
+	for i in *_AlnSeq.fasta; do	
+		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
+		mv "\$i" "\${name}_AlnSeq.fasta"
+	done
+
         for i in *_AlnSeq.fasta; do
                 name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 
@@ -731,6 +736,14 @@ process filterGeneAlignments {
                         grep -w -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
                 done
         done
+
+	# Add the outgroup
+	sed -i -e 's/~/_/g' outgroup
+
+	for i in *_AlnSeq.fasta; do
+		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
+		grep -w -A 1 "\$name" outgroup | awk -v outgroup="outgroup" '/^>/ {sub(/^>.*/, ">" outgroup, \$0)} {print}' >> "\${i}"
+	done
 
 	# Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n's
 	
@@ -757,7 +770,8 @@ process filterGeneAlignments {
 		fnames=\$(basename "\${i%_genomic.fna}")
 		echo "\${fnames}" >> modernSampleNames.txt
 	done
-
+	
+	echo outgroup >> modernSampleNames.txt
 	# Make a file with user sample names
 
 	for sample in sampleGenes/*; do
@@ -1126,7 +1140,7 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, entrez.out.fastaFiles, downloadGenomes)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, entrez.out.fastaFiles, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta)
 	pMauve(entrez.out.fastaFiles)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 	treeThreshold(makeMSA.out.genesAbovePercentMSA)
