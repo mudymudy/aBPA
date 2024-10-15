@@ -36,6 +36,9 @@ pangenomeMode = Channel.of(params.clean)
 params.config = ""
 configFile = Channel.of(params.config)
 
+params.outgroup = ""
+outTax = Channel.of(params.outgroup)
+
 params.help = false
 
 
@@ -150,8 +153,8 @@ process entrez {
 
 	output:
 
-	path '*.gz'
-
+	path '*fna', emit: fastaFiles
+	path '*gbff', emit: gffFiles
 
 	script:
 	"""
@@ -166,33 +169,40 @@ process entrez {
 	if [ -z "\$url" ]; then
 		continue
 	fi
-        
+	        
 	fname="\$(basename "\$url")"
-	wget "\$url/\${fname}_genomic.gbff.gz"
-        
-	wget "\$url/\${fname}_genomic.fna.gz"
+	downloadMeAndCheck() {
+		wget "\$url/\${fname}_genomic.gbff.gz"
+	        wget "\$url/\${fname}_genomic.fna.gz"
+
+		gunzip -f "\${fname}_genomic.gbff.gz"
+		gunzip -f "\${fname}_genomic.fna.gz"
+
+
+		if [ -f "\${fname}_genomic.gbff.gz" ] || [ -f "\${fname}_genomic.fna.gz" ]; then	
+			rm -f "\${fname}_genomic.gbff.gz" "\${fname}_genomic.fna.gz"
+			return 1
+		fi
+
+		return 0
+	}
+
+	while ! downloadMeAndCheck; do
+		echo "Files were corrupted. Retrying"
+		sleep 3
+	done
+	
+	# IF AFTER DOING gunzip -f WE STILL FIND THE EXTENSION *gz, then remove both files with the same {fname} (even if is just "\${fname}_genomic.gbff.gz" or "\${fname}_genomic.fna.gz" or both)
+	# If we remove any file, then:
+	#	1. We don't add +1 to the counter (it doesn't make sense to add +1 if the files were corrupted)
+	#	2. We download both *gbff.gz and *fna.gz again and we proceed to test the integrity again by checking if there is any *gz extension after gunzip.
 
 	counter="\$((counter + 1))"	
+
 	done
 	"""
 }
 
-
-
-process unzipFiles {
-	input:
-	path gz_files
-
-	output:
-	path "*.fna" , emit: fastaFiles
-	path "*.gbff" , emit: gffFiles
-
-	script:
-	"""
-	gunzip -f ${gz_files}
-	
-	"""
-}
 
 process fastaDatabase {
 	conda "${projectDir}/envs/biopython.yaml"
@@ -227,7 +237,7 @@ process clustering {
 	script:
 	"""
 	#!/bin/bash
-	cd-hit-est -i $fastaDB -o clustered_non_redundant_genes.fasta -c $clustering -n 10 -T $threadsGlobal
+	cd-hit-est -i $fastaDB -o clustered_non_redundant_genes.fasta -c $clustering -T $threadsGlobal -d 0 -g 1
 	"""
 }
 
@@ -252,7 +262,7 @@ process prokkaMakeAnnotations {
 	echo -e "\$species"
 	for i in fasta/*; do
 		name=\$(basename "\$i")
-		prokka --outdir "\${name%.fna}" --addgenes  --addmrna --species "\$species" --proteins clusteredSeqsDB --force --cpus $threadsGlobal "\$i"
+		prokka --outdir "\${name%.fna}" --species "\$species" --proteins clusteredSeqsDB --rawproduct --cpus $threadsGlobal "\$i"
 	done
 	
 	mkdir -p filteredGFF
@@ -690,12 +700,17 @@ process filterGeneAlignments {
 
 	script:
 	"""
+	#!/bin/bash
+	# Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments
+
 	for file in genes/*.aln.fas; do
 		name=\$(basename "\${file%.aln.fas}")
 		seqtk seq "\${file}" > TMP"\${name}"
 		awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
 		rm TMP"\$name"
 	done
+	
+	# Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments, but for alignments ending with *fasta
 
         for file in genes/*.fasta; do
                 name=\$(basename "\${file%.fasta}")
@@ -703,7 +718,10 @@ process filterGeneAlignments {
                 awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
                 rm TMP"\$name"
         done
+	
 
+	# Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments.
+	
         for i in *_AlnSeq.fasta; do
                 name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 
@@ -714,6 +732,8 @@ process filterGeneAlignments {
                 done
         done
 
+	# Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n's
+	
 	for i in *_AlnSeq.fasta; do
 
 		numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$i" | wc | awk '{print \$NF}')
@@ -731,18 +751,29 @@ process filterGeneAlignments {
 		}' "\$i" > tmp && mv tmp "\${i}"
 	done
 	
+	# Make a file with downloaded modern genomes names
 
 	for i in FNA/*.fna; do
 		fnames=\$(basename "\${i%_genomic.fna}")
-		echo "\${fnames}" >> sampleNames.txt
+		echo "\${fnames}" >> modernSampleNames.txt
 	done
+
+	# Make a file with user sample names
 
 	for sample in sampleGenes/*; do
 
 		sampleName=\$(basename "\${sample%.fasta}")
-		echo "\${sampleName}" >> sampleNames.txt
+		echo "\${sampleName}" >> userSampleNames.txt
 	done
+	
+	
+	# Make a file with every sample combined
 
+	cat modernSampleNames.txt userSampleNames.txt > sampleNames.txt
+
+	
+	# If there is missing modern strain, append the sample and fill it with - (gaps;absence of gene; because we trust modern genomes assemblies?)
+	
 	for file in *_AlnSeq.fasta ; do
 
 		sampleValue=\$(awk '/^>/ {print \$0}' "\$file" | wc -l)
@@ -754,12 +785,32 @@ process filterGeneAlignments {
 			while read -r strain; do
 				if ! grep -wq "\$strain" "\$file"; then
 					echo ">\$strain" >> "\$file"
-					fakeSeq=\$(printf 'n%.0s' \$(seq 1 \$(( numberOfColumns -1 ))))
+					fakeSeq=\$(printf '%*s' "\$((numberOfColumns - 1))" | tr ' ' '-')
 					echo "\$fakeSeq" >> "\$file"
 				fi 
-			done < sampleNames.txt
+			done < modernSampleNames.txt
 		fi
 	done
+
+	# If missing user sample == true, then append it and fill it with n's (can't treat them as gaps because there is uncertainty)
+
+        for file in *_AlnSeq.fasta ; do
+
+                sampleValue=\$(awk '/^>/ {print \$0}' "\$file" | wc -l)
+                numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$file" | wc | awk '{print \$NF}')
+                totalSamples=\$(wc -l < sampleNames.txt)
+                
+                if (( sampleValue < totalSamples)); then
+
+                        while read -r strain; do
+                                if ! grep -wq "\$strain" "\$file"; then
+                                        echo ">\$strain" >> "\$file"
+                                        fakeSeq=\$(printf '%*s' "\$((numberOfColumns - 1))" | tr ' ' 'n')
+                                        echo "\$fakeSeq" >> "\$file"
+                                fi
+                        done < sampleNames.txt
+                fi
+        done
 	"""
 }
 
@@ -956,16 +1007,115 @@ process treeAncient {
         """
 }
 
+process outgroupEntrez {
+	conda "${projectDir}/envs/entrez.yaml"
+
+	input:
+	val outID
+	
+	output:
+	path '*fna', emit: outgroupFasta
+
+	script:
+	"""
+	#!/bin/bash
+	counter=0
+	esearch -db assembly -query "txid${outID}[Organism] AND (latest[filter] AND (complete genome[filter] OR chromosome level[filter]))" | esummary | xtract -pattern DocumentSummary -element FtpPath_RefSeq | while read url; do
+        
+	if [ "\$counter" -ge 1 ]; then
+		break
+	fi
+
+	if [ -z "\$url" ]; then
+		continue
+	fi
+        
+	fname="\$(basename "\$url")"
+	wget "\$url/\${fname}_genomic.fna.gz"
+
+	counter="\$((counter + 1))"	
+	
+	gunzip -f "\${fname}_genomic.fna.gz"
+	
+	done	
+	"""
+}
+
+
+process makeReads {
+	conda "${projectDir}/envs/art.yaml"
+
+	input:
+	path outgroupFasta, stageAs: 'outgroupFasta.fasta'
+	
+	output:
+	path 'outgroupReads.fq', emit: outgroupReads
+
+
+	script:
+	"""
+	art_illumina -i outgroupFasta.fasta -l 150 -f 100 -o outgroupReads
+	"""
+}
+
+
+process outgroupAlignmentFAndiltering {
+	conda "${projectDir}/envs/alignment.yaml"
+	
+	input:
+	path outgroupReads, stageAs: 'outgroupReads.fq'
+	path panGenomeRef, stageAs: 'panGenomeReferenceSeq.fasta'
+	val threadsGlobal
+
+	output:
+	path 'outgroupFastaPostAlignment.bam', emit: outgroupFastaPostAlignment
+
+	script:
+	"""
+	bwa index panGenomeReferenceSeq.fasta
+	bwa mem -B 1 -E 1 panGenomeReferenceSeq.fasta outgroupReads.fq -t $threadsGlobal > outgroupFasta.sam
+	samtools view -bS outgroupFasta.sam > outgroupFasta.bam
+	samtools quickcheck outgroupFasta.bam
+	samtools sort -o outgroupFastaSorted.bam -O bam -@ $threadsGlobal outgroupFasta.bam
+	samtools index outgroupFastaSorted.bam
+	samtools view -b -@ 10 -F 4 outgroupFastaSorted.bam > outgroupFastaSortedMappedreads.bam
+	samtools index outgroupFastaSortedMappedreads.bam
+	samtools sort -o outgroupFastaPostAlignment.bam -O bam -@ $threadsGlobal outgroupFastaSortedMappedreads.bam
+	"""
+}
+
+
+process makeOutgroupConsensus {
+	conda "${projectDir}/envs/consensus.yaml"
+
+	input:
+	path outgroupFastaPostAlignment, stageAs: 'outgroupFastaPostAlignment.bam'
+	path panGenomeRef, stageAs: 'panGenomeRef.fasta'
+
+	output:
+	path 'extractedSequencesOutgroup.fasta', emit: extractedSequencesOutgroupFasta
+	path 'extractedSequencesOutgroup.fq', emit: extractedSequencesOutgroupFastq
+
+	script:
+	"""
+	bcftools mpileup -f panGenomeRef.fasta outgroupFastaPostAlignment.bam | bcftools call -c | vcfutils.pl vcf2fq > extractedSequencesOutgroup.fq
+	seqtk seq -a extractedSequencesOutgroup.fq > extractedSequencesOutgroup.fasta
+
+	"""
+}
 
 workflow {
 	dirStructure(resultsDir)
-	dwnld = entrez(downloadGenomes, taxID, resultsDir)
-	unzipFiles(dwnld)
-	concatenatedSeqs = fastaDatabase(unzipFiles.out.gffFiles)
+	entrez(downloadGenomes, taxID, resultsDir)
+	fastaDatabase(entrez.out.gffFiles)
 	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
-	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, unzipFiles.out.gffFiles, unzipFiles.out.fastaFiles)
+	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, entrez.out.gffFiles, entrez.out.fastaFiles)
 	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
 	formattingPangenome(makePangenome.out.panSequence)
+        outgroupEntrez(outTax)
+        makeReads(outgroupEntrez.out.outgroupFasta)
+        outgroupAlignmentFAndiltering(makeReads.out.outgroupReads, formattingPangenome.out.panGenomeReference, threadsGlobal)
+        makeOutgroupConsensus(outgroupAlignmentFAndiltering.out.outgroupFastaPostAlignment, formattingPangenome.out.panGenomeReference)
 	alignment(reads, formattingPangenome.out.panGenomeReference, threadsGlobal, configFile)
 	alignmentSummary(configFile, alignment.out.postAlignedBams)
 	normalizationFunction(alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage)
@@ -976,8 +1126,8 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, unzipFiles.out.fastaFiles, downloadGenomes)
-	pMauve(unzipFiles.out.fastaFiles)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, entrez.out.fastaFiles, downloadGenomes)
+	pMauve(entrez.out.fastaFiles)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 	treeThreshold(makeMSA.out.genesAbovePercentMSA)
 	treeUbiquitous(makeMSA.out.maskedMatrixGenesUbiquitousMSA)
