@@ -198,6 +198,15 @@ process entrez {
 	#	2. We download both *gbff.gz and *fna.gz again and we proceed to test the integrity again by checking if there is any *gz extension after gunzip.
 
 	counter="\$((counter + 1))"	
+	fna_count=\$(ls -1 *.fna 2>/dev/null | wc -l)
+	gbff_count=\$(ls -1 *.gbff 2>/dev/null | wc -l)
+
+	# Continue downloading until the count matches gE
+	if [ "\$fna_count" -lt "\$gE" ] || [ "\$gbff_count" -lt "\$gE" ]; then
+		echo "Still need more files. Current count: \$fna_count .fna files, \$gbff_count .gbff files."
+		continue
+	fi
+
 
 	done
 	"""
@@ -209,14 +218,27 @@ process fastaDatabase {
 	
 	input:
 	path gffFiles, stageAs: 'gff/*'
-
+	path fastaFiles, stageAs: 'fasta/*'
+		
 	output:
-	path "clustered_sequences.fasta" , emit: theFastaDatabase
+	path 'clustered_sequences.fasta' , emit: theFastaDatabase
+	path 'cleanedFasta/*fna', emit: validFasta
+	path 'cleanedGff/*gbff', emit: validGff
 
 	script:
 
 	"""
+	parseTest.py gff > parseTest.txt
+	grep "is not a valid GenBank file" parseTest.txt | awk '{print \$1}' | sed -e 's/gff\\///g' > blackListed.txt
+	
+	while read -r removeMe; do
+	rm fasta/"\${removeMe%gbff}fna" gff/*"\$removeMe"	
+	done < blackListed.txt
+
 	parsing_and_contatenating.py gff
+	
+	mv fasta cleanedFasta
+	mv gff cleanedGff
 
 	"""
 }
@@ -237,7 +259,7 @@ process clustering {
 	script:
 	"""
 	#!/bin/bash
-	cd-hit-est -i $fastaDB -o clustered_non_redundant_genes.fasta -c $clustering -T $threadsGlobal -d 0 -g 1
+	cd-hit-est -i $fastaDB -o clustered_non_redundant_genes.fasta -c $clustering -T $threadsGlobal -d 0 -g 1 -M 0
 	"""
 }
 
@@ -1121,9 +1143,9 @@ process makeOutgroupConsensus {
 workflow {
 	dirStructure(resultsDir)
 	entrez(downloadGenomes, taxID, resultsDir)
-	fastaDatabase(entrez.out.gffFiles)
+	fastaDatabase(entrez.out.gffFiles, entrez.out.fastaFiles)
 	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
-	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, entrez.out.gffFiles, entrez.out.fastaFiles)
+	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
 	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
 	formattingPangenome(makePangenome.out.panSequence)
         outgroupEntrez(outTax)
@@ -1140,8 +1162,8 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, entrez.out.fastaFiles, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta)
-	pMauve(entrez.out.fastaFiles)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta)
+	pMauve(fastaDatabase.out.validFasta)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 	treeThreshold(makeMSA.out.genesAbovePercentMSA)
 	treeUbiquitous(makeMSA.out.maskedMatrixGenesUbiquitousMSA)
