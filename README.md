@@ -45,8 +45,14 @@ After downloading the repository you should see the folders `bin/` `config/` `en
 # 2/ First steps
 
 
+First things first. aBPA assumes you already know what bacteria is in your data (if you have metagenomic data). If you don't know what is in your data you need to do metagenomic profiling first. There a a number of tools that can perform this such as eager, aMeta or mapache.
+
+Once you have a bacteria in mind, then you need to know the taxonomic ID and the taxonomic ID of another bacteria that you want to use as outgroup for phylogenetic reconstruction. 
 
 
+### config.tab file
+
+The way the pipeline reads your data is through the config.tab file, which has to be located in the `config/` folder. The structure is as follows:
 
 
 
