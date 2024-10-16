@@ -4,6 +4,8 @@
 Created on Mon Sep  9 16:14:48 2024
 
 @author: bruno
+
+Some GenBank files may have been submitted with wrong format. At the moment I don't have time to fix those so we will ignore them.
 """
 
 from Bio import SeqIO
