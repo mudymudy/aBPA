@@ -43,3 +43,42 @@ After downloading the repository you should see the folders `bin/` `config/` `en
 
 
 # 2/ First steps
+
+
+
+
+
+
+
+
+# 3/ Documentation
+
+
+
+globalMeanCoverage.txt contains:
+
+sampleID
+
+sampleCoverage = Total number of bases of the reference genome genes where there is at least 1 read covering.
+
+refCount = Total number of bases of the reference genome, including genes that are not being covered by reads.
+
+globalMean = Mean depth of coverage of every gene where there is at least 1 read covering.
+
+geneNormalizedSummary.txt contains:
+
+sampleID
+gene = Gene name
+
+normalizedGeneSimple = (geneMeanDepth / globalMean)
+-	geneMeanDepth -> Mean Depth of coverage of a particular gene.
+
+normalizedGeneScaled = (geneMeanDepth / globalMean) * geneLength[gene]
+-	geneLength[gene] -> Length of a particular gene.
+
+normalizedGenomeSimple = (geneMeanDepth / globalMean) * (geneLength[gene] / sampleCoverage)
+
+normalizedGenomeScaled = (geneMeanDepth / globalMean) * (geneLength[gene] / refCount)
+
+
+
