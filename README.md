@@ -42,6 +42,8 @@ After downloading the repository you should see the folders `bin/` `config/` `en
 If you can't be bothered to type nextflow run aBPA.nf every time, you can do (assuming you already exported nextflow $PATH into your .bashrc file):
 
 >`$ echo "alias aBPA='nextflow run aBPA.nf'" >> ~/.bashrc`
+
+
 >`$ source ~/.bashrc`
 Then you can just type aBPA in the same directory where aBPA.nf is located.
 
