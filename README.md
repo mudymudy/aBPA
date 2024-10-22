@@ -45,6 +45,9 @@ If you can't be bothered to type nextflow run aBPA.nf every time, you can do (as
 
 
 >`$ source ~/.bashrc`
+
+
+
 Then you can just type aBPA in the same directory where aBPA.nf is located.
 
 
