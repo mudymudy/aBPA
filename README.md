@@ -39,7 +39,11 @@ After installing `nextflow`, if you wish to be able to call the executable witho
 
 
 After downloading the repository you should see the folders `bin/` `config/` `envs/` and the files `aBPA.nf` and `nextflow.config`.
+If you can't be bothered to type nextflow run aBPA.nf every time, you can do (assuming you already exported nextflow $PATH into your .bashrc file):
 
+>`echo "alias aBPA='nextflow run aBPA.nf'" >> ~/.bashrc`
+
+Then you can just type aBPA in the same directory where aBPA.nf is located.
 
 
 # 2/ First steps
