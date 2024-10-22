@@ -1,9 +1,8 @@
 name: consensus
 channels:
-- bioconda
-- anaconda
 - conda-forge
-- defaults
+- bioconda
 dependencies:
 - samtools
 - seqtk
+- bcftools
