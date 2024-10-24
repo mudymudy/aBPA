@@ -1,3 +1,5 @@
+GCF_003606265.1_ASM360626v1
+GCF_004101825.1_ASM410182v1
 #!/usr/bin/env nextflow
 
 params.data = ""
