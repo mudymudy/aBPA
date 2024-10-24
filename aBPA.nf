@@ -669,6 +669,24 @@ process buildHeatmap {
 		awk '{print \$NF}' "\${name}"_FINAL_INDEX > "\${name}"_FINALCOLUMN
 
 	done
+        # I need to add a quality control step right here. User samples can be false positives sometimes or just super low quality and have 0 genes after filtering
+        # Then, black list unwanted samples and exclude them from the final_matrix.tab document.
+        for checkSample in *_FINALCOLUMN; do
+                sampleName=\$(basename "\${checkSample%_INDEX.Z_FINALCOLUMN}")
+                counts=\$(grep -c "0" "\$checkSample")
+                totalLines=\$(wc -l "\$checkSample" | awk '{print \$1 - 1}')
+                proportion=\$(awk -v absence="\$counts" -v record="\$totalLines" 'BEGIN { print (absence / record ) }')         
+
+                if  (( \$(awk -v p="\$proportion" 'BEGIN { print (p > 0.7) }' ) )); then
+                        echo "\$sampleName" >> blackListedQualityChecked.txt
+                fi
+        done
+
+	while read -r removeMe; do
+		mv "\${removeMe}_INDEX.Z_FINALCOLUMN" "\${removeMe}LowQualitySample"    
+		grep -v "\${removeMe}" names/sample_names > names/sample_names.tmp
+		mv names/sample_names.tmp names/sample_names
+	done < blackListedQualityChecked.txt    
 
 
 	paste matrix/matrix.tab *_FINALCOLUMN > final_matrix.tab
