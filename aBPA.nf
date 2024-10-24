@@ -769,10 +769,21 @@ process filterGeneAlignments {
 		mv "\$i" "\${name}_AlnSeq.fasta"
 	done
 
+	# Make a file with user sample names
+	while read -r removeMe; do
+		mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
+	done < blackListed.txt
+		
+	for sample in sampleGenes/*fasta; do
+
+		sampleName=\$(basename "\${sample%.fasta}")
+		echo "\${sampleName}" >> userSampleNames.txt
+	done
+
         for i in *_AlnSeq.fasta; do
                 name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 
-                for sample in sampleGenes/*; do
+                for sample in sampleGenes/*fasta; do
 			sed -i -e 's/~/_/g' "\$sample"
 			sampleName=\$(basename "\${sample%.fasta}")
                         grep -w -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
@@ -816,16 +827,6 @@ process filterGeneAlignments {
 	echo outgroup >> modernSampleNames.txt
 
 
-	# Make a file with user sample names
-	while read -r removeMe; do
-		mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
-	done < blackListed.txt
-		
-	for sample in sampleGenes/*fasta; do
-
-		sampleName=\$(basename "\${sample%.fasta}")
-		echo "\${sampleName}" >> userSampleNames.txt
-	done
 	
 	
 	# Make a file with every sample combined
