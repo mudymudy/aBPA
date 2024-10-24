@@ -639,7 +639,8 @@ process buildHeatmap {
 	path 'sampleOrdernoUbiquitous.txt', emit: sampleOrdernoUbiquitous 
 	path 'sampleOrderonlyAncient.txt', emit: sampleOrderonlyAncient
 	path 'genesAbovePercentSeries.txt', emit: genesAbovePercentSeries
-	
+	path 'blackListedQualityChecked.txt', emit: blackListed
+
 	script:
 	"""
 	for i in fCSV/*_final.csv; do
@@ -734,7 +735,8 @@ process filterGeneAlignments {
 	path fFiles, stageAs: 'FNA/*'
 	val genomes
 	path outgroupSeq, stageAs: 'outgroup'
-	
+	path blackListed, stageAs: 'blackListed.txt'
+
 	output:
 	path '*AlnSeq.fasta', emit: genesAlnSeq
 	path 'sampleNames.txt', emit: sampleNames
@@ -812,9 +814,14 @@ process filterGeneAlignments {
 	done
 	
 	echo outgroup >> modernSampleNames.txt
-	# Make a file with user sample names
 
-	for sample in sampleGenes/*; do
+
+	# Make a file with user sample names
+	while read -r removeMe; do
+		mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
+	done < blackListed.txt
+		
+	for sample in sampleGenes/*fasta; do
 
 		sampleName=\$(basename "\${sample%.fasta}")
 		echo "\${sampleName}" >> userSampleNames.txt
@@ -1180,7 +1187,7 @@ workflow {
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
 	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta, buildHeatmap.out.blackListed)
 	pMauve(fastaDatabase.out.validFasta)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 	treeThreshold(makeMSA.out.genesAbovePercentMSA)
