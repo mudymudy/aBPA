@@ -763,13 +763,13 @@ process filterGeneAlignments {
         done
 	
 
-	# Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments.
+	# Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments
 	for i in *_AlnSeq.fasta; do	
 		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 		mv "\$i" "\${name}_AlnSeq.fasta"
 	done
 
-	# Make a file with user sample names
+	# BlackList low quality user samples and then make a file with user sample names
 	while read -r removeMe; do
 		mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
 	done < blackListed.txt
@@ -941,7 +941,114 @@ process makeMSA {
 		if [ "\$samplesPresent" = false ]; then
 			mv "\$i" specialCases/
 		fi
+	
 	done
+
+
+	# Dealing with fragmented Panaroo gene alignments multi-entries (nothing else to do here since is a panaroo problem, but I'll try to save as much as possible)
+
+	for file in specialCases/*.fasta; do
+		name=\$(basename "\${file%.fasta}")
+		sed -i -e 's/>_[^_]*_/>/g' "\$file"
+	# Identifying repeated headers and save them to .dpd 
+		awk '/^>/ {count[\$0]++} END {for (header in count) if (count[header] > 1) print substr(header, 2)}' "\$file" > specialCases/"\${name}.dpd"
+
+	# Extracting sequences for each repeated entry into temporary files
+		while read -r entry; do
+			awk -v sampleName="\$entry" '
+			\$0 ~ "^>" sampleName {print_header=1; next}
+			/^>/ {print_header=0}
+			print_header {print}' "\$file" > specialCases/"\${name}Seqs_\${entry}"
+		done < specialCases/"\${name}.dpd"
+
+	# Remove repeated entries and their sequences from the original FASTA file
+		awk -v dpdFile=specialCases/"\${name}.dpd" '
+		BEGIN {
+		while (getline < dpdFile) {
+			repeated[\$0] = 1
+			}
+		}
+		/^>/ { header = substr(\$0, 2)
+		if (repeated[header]) {
+			skip = 1
+		} else {
+			skip = 0}
+		}
+		!skip' "\$file" > specialCases/"\${name}_cleaned.fasta"
+
+
+
+
+
+
+		for indexSeqs in specialCases/"\${name}Seqs_"*; do
+			geneName=\$(basename "\${indexSeqs%Seqs_*}")
+			sampleName=\$(basename "\${indexSeqs##*Seqs_}")
+
+			# Read the longest line based on letter count
+			sequence=\$(awk '
+			{gsub(/[^a-zA-Z]/, "", \$0); len=length(\$0)}
+			len > max_length {max_length=len; longest=\$0}
+			END {print longest}' "\$indexSeqs")
+
+
+
+        # Finally add the selected sequence back to the cleaned original FASTA file with the header as well
+			echo ">\${sampleName}" >> specialCases/"\${name}_cleaned.fasta"
+			echo "\$sequence" >> specialCases/"\${name}_cleaned.fasta"
+		done
+
+	# Cleaning temporary files
+		rm specialCases/"\${name}Seqs_"* specialCases/"\${name}.dpd"
+
+	done
+        # If missing user sample == true, then append it and fill it with n's (can't treat them as gaps because there is uncertainty)
+
+        for file in specialCases/*_cleaned.fasta ; do
+
+                sampleValue=\$(awk '/^>/ {print \$0}' "\$file" | wc -l)
+                numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$file" | wc | awk '{print \$NF}')
+                totalSamples=\$(wc -l < sampleNames.txt)
+
+                if (( sampleValue < totalSamples)); then
+
+                        while read -r strain; do
+                                if ! grep -wq "\$strain" "\$file"; then
+                                        echo ">\$strain" >> "\$file"
+                                        fakeSeq=\$(printf '%*s' "\$((numberOfColumns - 1))" | tr ' ' 'n')
+                                        echo "\$fakeSeq" >> "\$file"
+                                fi
+                        done < sampleNames.txt
+                fi
+        done
+
+	# Turns out these broken entries were also incomplete
+
+        for i in specialCases/*_cleaned.fasta; do
+
+                numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$i" | wc | awk '{print \$NF}')
+                echo "\$numberOfColumns"
+
+                awk -v numCols="\$numberOfColumns" '{
+                        if (\$0 ~ /^>/) {
+                                print
+                        } else {
+                        while ( length(\$0) < numCols - 1) {
+                                \$0 = \$0 "n"
+                        }
+                        print
+                        }
+                }' "\$i" > specialCases/tmp && mv specialCases/tmp "\${i}"
+        done
+
+
+	mv specialCases/*_cleaned.fasta filteredGenes/
+
+	for file in filteredGenes/*_cleaned.fasta; do
+		name=\$(basename "\${file%_cleaned.fasta}_Filtered.fasta")
+		mv "\$file" filteredGenes/"\$name"
+	done
+
 
 	touch genesAbovePercentMSA.fasta
 	touch maskedMatrixGenesUbiquitousMSA.fasta
