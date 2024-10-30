@@ -1105,15 +1105,119 @@ process pMauve {
 	path gffFiles, stageAs: '*'
 
 	output:
-	path 'pMauveAlignment', emit: pMauveAlignment
-	path 'pMauveAlignment.b*', emit: pMauveAdditionalOutputs
-
+	path 'pMauveAlignment.xmfa', emit: pMauveAlignment
+	path 'pMauveAlignment.bbcols', emit: pMauveBbcols
+	path 'pMauveAlignment.backbone', emit: pMauveBackbone
+	path 'pMauveAlignmentCoreGenome', emit: pMauveCoreGenome
 
 	script:
 	"""
 	progressiveMauve  --output=pMauveAlignment *
+	mv pMauveAlignment ./pMauveAlignment.xmfa
+	stripSubsetLCBs pMauveAlignment.xmfa pMauveAlignment.bbcols pMauveAlignmentCoreGenome 500
 	"""
 }
+
+process xmfaToFasta {
+	conda "${projectDir}/envs/biopython.yaml"
+
+	input:
+	path coreGenome, stageAs: 'pMauveAlignmentCoreGenome.xmfa'
+
+	output:
+	path 'pMauveFastaMSA.fasta', emit: pMauveFastaMSA
+
+	script:
+	"""
+	convertXmfaToFasta.py pMauveAlignmentCoreGenome.xmfa
+	"""
+}
+
+process filterMauveFasta {
+	conda "${projectDir}/envs/seqtk.yaml"
+
+	input:
+	path mauveFastaMSA, stageAs: 'pMauveFastaMSA.fasta'
+
+	output:
+	path 'concatenatedSeqtkMauveFastaMSA.fasta', emit: concatenatedSeqtkMauveFastaMSA
+
+	script:
+	"""
+	seqtk seq pMauveFastaMSA.fasta > seqtkMauveFastaMSA.fasta
+	sed -i -e '/^>/ s/\\/.*//' seqtkMauveFastaMSA.fasta 
+
+	awk '
+	{
+	    if (/^>/) {
+	        header = \$1  
+	        gsub(/^>/, "", header)  
+	    } else {
+	        seq[header] = seq[header] \$0  
+	    }
+	}
+	END {
+	    for (id in seq) {
+	        print ">" id  
+	        print seq[id] 
+	    }
+	}' seqtkMauveFastaMSA.fasta > concatenatedSeqtkMauveFastaMSA.fasta
+	
+	"""
+}
+
+process startingTree {
+	conda "${projectDir}/envs/iqtree.yaml"	
+
+	input:
+	path concatenatedSeqtkMauveFastaMSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
+
+	output:
+	path 'startingTreeMauveFasta.treefile', emit: startingTreeMauveFasta
+	path 'startingTreeMauveFasta.iqtree', emit: startingTreeMauveFastaLog
+	path 'kappaValue', emit: kappa
+
+	script:
+	"""
+	iqtree -s concatenatedSeqtkMauveFastaMSA.fasta --prefix startingTreeMauveFasta -T 10 -B 1000 -m MFP
+	
+	awk -F':' '
+		/A-C:/ {ACtransversion=\$2 + 0}
+		/A-G:/ {AGtransition=\$2 + 0}
+		/A-T:/ {ATtransversion=\$2 + 0}
+		/C-T:/ {CTtransition=\$2 + 0}
+		/C-G:/ {CGtransversion=\$2 + 0}
+		/G-T:/ {GTtransversion=\$2 + 0}
+		END {
+		transitionRate= ((AGtransition + CTtransition)/2)
+		transversionRate= (( ACtransversion + ATtransversion + CGtransversion + GTtransversion ) / 4)
+		kappa = (transitionRate / transversionRate  )		
+
+		print kappa }' startingTreeMauveFasta.iqtree > kappaValue
+
+	"""
+}
+
+
+process findRecombinationSpots {
+	conda "${projectDir}/envs/clonalframe.yaml" 
+
+	input:
+	path MSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
+	path startingTree, stageAs: 'startingTreeMauveFasta.treefile'
+	path kappa, stageAs: 'kappaValue'
+
+	output:
+	stdout
+	
+	script:
+	"""
+	kappa=\$(cat kappaValue)
+	ClonalFrameML startingTreeMauveFasta.treefile concatenatedSeqtkMauveFastaMSA.fasta recombinantOutputs -kappa "\${kappa}"
+
+	"""
+}
+
 
 process treeThreshold {
 	conda "${projectDir}/envs/iqtree.yaml"
@@ -1302,4 +1406,8 @@ workflow {
 	treeUbiquitous(makeMSA.out.maskedMatrixGenesUbiquitousMSA)
 	treeNoUbiquitous(makeMSA.out.maskedMatrixGenesNoUbiquitousMSA)
 	treeAncient(makeMSA.out.maskedMatrixGenesOnlyAncientMSA)
+	xmfaToFasta(pMauve.out.pMauveCoreGenome)
+	filterMauveFasta(xmfaToFasta.out.pMauveFastaMSA)
+	startingTree(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
+	findRecombinationSpots(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, startingTree.out.startingTreeMauveFasta, startingTree.out.kappa)
 }
