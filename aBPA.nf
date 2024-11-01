@@ -39,6 +39,9 @@ configFile = Channel.of(params.config)
 params.outgroup = ""
 outTax = Channel.of(params.outgroup)
 
+params.trustedGenomes = false
+def trustedDataChannel = params.trustedGenomes ? Channel.fromPath(params.trustedGenomes) : Channel.empty()
+
 params.help = false
 
 
@@ -213,6 +216,22 @@ process entrez {
 }
 
 
+process trustedData {
+
+	input:
+	path data
+
+	output:
+	path '*fna', emit: trustedFasta
+	path '*gbff', emit: trustedGenBank
+
+	script:
+	"""
+	cp $data/* ./
+
+	"""
+}
+
 process fastaDatabase {
 	conda "${projectDir}/envs/biopython.yaml"
 	
@@ -273,7 +292,7 @@ process prokkaMakeAnnotations {
 	path fastaFiles, stageAs: 'fasta/*'
 
 	output:
-	path '*_genomic' , emit: prokkaOut
+	path '*_fromProkka' , emit: prokkaOut
 	path 'filteredGFF/*gff', emit: prokkaGFF
 	script:
 	"""
@@ -284,13 +303,13 @@ process prokkaMakeAnnotations {
 	echo -e "\$species"
 	for i in fasta/*; do
 		name=\$(basename "\$i")
-		prokka --outdir "\${name%.fna}" --species "\$species" --proteins clusteredSeqsDB --rawproduct --cpus $threadsGlobal "\$i"
+		prokka --outdir "\${name%.fna}_fromProkka" --species "\$species" --proteins clusteredSeqsDB --rawproduct --cpus $threadsGlobal "\$i"
 	done
 	
 	mkdir -p filteredGFF
 
-	for sample in *_genomic; do
-		name=\$(basename "\${sample%_genomic}")
+	for sample in *_fromProkka; do
+		name=\$(basename "\${sample%_fromProkka}")
 		mv "\$sample"/*gff filteredGFF/"\${name}.gff"
 	done
 
@@ -820,7 +839,7 @@ process filterGeneAlignments {
 	# Make a file with downloaded modern genomes names
 
 	for i in FNA/*.fna; do
-		fnames=\$(basename "\${i%_genomic.fna}")
+		fnames=\$(basename "\${i%.fna}")
 		echo "\${fnames}" >> modernSampleNames.txt
 	done
 	
@@ -1379,8 +1398,20 @@ process makeOutgroupConsensus {
 
 workflow {
 	dirStructure(resultsDir)
-	entrez(downloadGenomes, taxID, resultsDir)
-	fastaDatabase(entrez.out.gffFiles, entrez.out.fastaFiles)
+
+	if (!params.trustedGenomes) {
+		entrez(downloadGenomes, taxID, resultsDir)
+		fastaFiles = entrez.out.fastaFiles
+		gffFiles = entrez.out.gffFiles
+
+	} else {
+		trustedData(trustedDataChannel)
+		fastaFiles = trustedData.out.trustedFasta
+		gffFiles = trustedData.out.trustedGenBank
+
+	}
+
+	fastaDatabase(gffFiles, fastaFiles)
 	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
 	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
 	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
