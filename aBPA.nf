@@ -1227,7 +1227,7 @@ process findRecombinationSpots {
 	path kappa, stageAs: 'kappaValue'
 
 	output:
-	stdout
+	path 'recombinantOutputs.importation_status.txt', emit: recombinationMap
 	
 	script:
 	"""
@@ -1236,6 +1236,58 @@ process findRecombinationSpots {
 
 	"""
 }
+
+process mapRecombinantsToGenes {
+
+
+	input:
+	path recombinationMap, stageAs: 'recombinantOutputs.importation_status.txt'
+	path MSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
+
+	output:
+	stdout
+
+	script:
+	"""
+	awk '!/^NODE/ && NR>1 {print \$0}' recombinantOutputs.importation_status.txt > filteredRecombinationMap
+
+	while read -r name beg end; do
+	    awk -v name="\$name" -v start="\$beg" -v end="\$end" '
+	    BEGIN {
+	        # Initialize sequence counter
+	        seqCount = 0
+	    }
+	    /^>/ {  
+	        # Process headers, reset variables for each new header
+	        headerSequence = substr(\$0, 2)  # Remove the ">" to get the header name
+	        isHeader = (headerSequence == name)  # Check if the header matches the target name
+	
+	        if (isHeader) {
+	            seqCount++  # Increment the sequence count for unique headers
+	            fullSeq = ""  # Reset fullSeq for the new header
+	            currentHeader = name "_seq" seqCount  # Create a unique header for this sequence
+	        }
+	    }
+	    !/^>/ && isHeader {  
+	        # Process sequence lines only if we are within the target sequence
+	        fullSeq = fullSeq \$0  # Concatenate sequence lines
+	    }
+	    /^>/ && fullSeq != "" {
+	        # Store fullSeq for each unique header when a new header starts
+	        seqArray[currentHeader] = substr(fullSeq, start, end - start + 1)
+	    }
+	    END {
+	        # Print all stored sequences
+	        for (header in seqArray) {
+	            printf(">%s\\n%s\\n", header, seqArray[header])
+	        }
+	    }
+	    ' concatenatedSeqtkMauveFastaMSA.fasta >> "\${name%.fna}"_newfileWithExtractedHeadersAndSequences.fasta
+	done < filteredRecombinationMap
+
+	"""
+}
+
 
 
 process treeThreshold {
@@ -1441,4 +1493,5 @@ workflow {
 	filterMauveFasta(xmfaToFasta.out.pMauveFastaMSA)
 	startingTree(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
 	findRecombinationSpots(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, startingTree.out.startingTreeMauveFasta, startingTree.out.kappa)
+	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
 }
