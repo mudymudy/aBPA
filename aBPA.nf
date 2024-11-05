@@ -1238,53 +1238,79 @@ process findRecombinationSpots {
 }
 
 process mapRecombinantsToGenes {
-
+	conda "${projectDir}/envs/blast.yaml"
 
 	input:
 	path recombinationMap, stageAs: 'recombinantOutputs.importation_status.txt'
 	path MSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
+	path db, stageAs: 'database/*'
 
 	output:
 	stdout
 
 	script:
 	"""
+	#!/bin/bash
+
 	awk '!/^NODE/ && NR>1 {print \$0}' recombinantOutputs.importation_status.txt > filteredRecombinationMap
 
 	while read -r name beg end; do
 	    awk -v name="\$name" -v start="\$beg" -v end="\$end" '
-	    BEGIN {
-	        # Initialize sequence counter
-	        seqCount = 0
-	    }
-	    /^>/ {  
-	        # Process headers, reset variables for each new header
+	    /^>/ {
+	        # Process headers
 	        headerSequence = substr(\$0, 2)  # Remove the ">" to get the header name
 	        isHeader = (headerSequence == name)  # Check if the header matches the target name
 	
 	        if (isHeader) {
-	            seqCount++  # Increment the sequence count for unique headers
 	            fullSeq = ""  # Reset fullSeq for the new header
-	            currentHeader = name "_seq" seqCount  # Create a unique header for this sequence
+	            currentHeader = name "_seq"  # Create a unique header for this sequence
 	        }
 	    }
-	    !/^>/ && isHeader {  
-	        # Process sequence lines only if we are within the target sequence
-	        fullSeq = fullSeq \$0  # Concatenate sequence lines
+	    !/^>/ && isHeader {
+	        fullSeq = fullSeq \$0   
 	    }
 	    /^>/ && fullSeq != "" {
 	        # Store fullSeq for each unique header when a new header starts
-	        seqArray[currentHeader] = substr(fullSeq, start, end - start + 1)
+	        # Remove sequences shorter than 30 bp? To avoid mapping uncertainty
+	        seqTesting = substr(fullSeq, start, end - start + 1)
+	        if (length(seqTesting) >= 30) {
+	            seqArray[currentHeader] = seqTesting
+        	}
+	        fullSeq = ""
 	    }
 	    END {
+	        # This is for the last entry
+	        if (fullSeq != "") {
+	            seqTesting = substr(fullSeq, start, end - start + 1)
+	            if (length(seqTesting) >= 30) {
+	                seqArray[currentHeader] = seqTesting
+	            }
+	        }
+	        
 	        # Print all stored sequences
 	        for (header in seqArray) {
 	            printf(">%s\\n%s\\n", header, seqArray[header])
 	        }
 	    }
-	    ' concatenatedSeqtkMauveFastaMSA.fasta >> "\${name%.fna}"_newfileWithExtractedHeadersAndSequences.fasta
+	    ' concatenatedSeqtkMauveFastaMSA.fasta >> "\${name%.fna}"_TMP.fasta
 	done < filteredRecombinationMap
-
+	
+	for i in *_TMP.fasta; do
+		name=\$(basename "\${i%_TMP.fasta}")
+		awk '
+		    BEGIN { count = 0 }  
+		    /^>/ { 
+		        count++  
+		        \$0 = \$0 "_" count  # this just add a counter for each header to make them unique
+		        print
+		    } 
+		    !/^>/ { 
+		        print  # Print the sequence line
+		    }
+		' "\$i"  > "\$name"_newfileWithExtractedHeadersAndSequences.fasta
+	done
+	
+	rm *TMP.fasta	
 	"""
 }
 
@@ -1448,6 +1474,23 @@ process makeOutgroupConsensus {
 	"""
 }
 
+
+process blastMe {
+	conda "${projectDir}/envs/blast.yaml"
+
+	input:
+	path panSeq, stageAs: 'panGenomeReference.fasta'
+
+	output:
+	path 'panGenomeReferenceDB*', emit: panGenomeReferenceDB
+
+	script:
+	"""
+	makeblastdb -in panGenomeReference.fasta -dbtype nucl -out panGenomeReferenceDB
+	"""
+}
+
+
 workflow {
 	dirStructure(resultsDir)
 
@@ -1468,6 +1511,7 @@ workflow {
 	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
 	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
 	formattingPangenome(makePangenome.out.panSequence)
+	blastMe(formattingPangenome.out.panGenomeReference)
         outgroupEntrez(outTax)
         makeReads(outgroupEntrez.out.outgroupFasta)
         outgroupAlignmentFAndiltering(makeReads.out.outgroupReads, formattingPangenome.out.panGenomeReference, threadsGlobal)
@@ -1493,5 +1537,5 @@ workflow {
 	filterMauveFasta(xmfaToFasta.out.pMauveFastaMSA)
 	startingTree(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
 	findRecombinationSpots(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, startingTree.out.startingTreeMauveFasta, startingTree.out.kappa)
-	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
+	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, blastMe.out.panGenomeReferenceDB)
 }
