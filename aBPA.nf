@@ -697,22 +697,28 @@ process buildHeatmap {
                 totalLines=\$(wc -l "\$checkSample" | awk '{print \$1 - 1}')
                 proportion=\$(awk -v absence="\$counts" -v record="\$totalLines" 'BEGIN { print (absence / record ) }')         
 
-                if  (( \$(awk -v p="\$proportion" 'BEGIN { print (p > 0.7) }' ) )); then
+                if  (( \$(awk -v p="\$proportion" 'BEGIN { print (p > 0.95) }' ) )); then
                         echo "\$sampleName" >> blackListedQualityChecked.txt
                 fi
         done
-
-	while read -r removeMe; do
-		mv "\${removeMe}_INDEX.Z_FINALCOLUMN" "\${removeMe}LowQualitySample"    
-		grep -v "\${removeMe}" names/sample_names > names/sample_names.tmp
-		mv names/sample_names.tmp names/sample_names
-	done < blackListedQualityChecked.txt    
-
+	
+	# Do this only if blacklisted
+	if [[ -s blackListedQualityChecked.txt ]]; then
+		while read -r removeMe; do
+			mv "\${removeMe}_INDEX.Z_FINALCOLUMN" "\${removeMe}LowQualitySample"    
+			grep -v "\${removeMe}" names/sample_names > names/sample_names.tmp
+			mv names/sample_names.tmp names/sample_names
+		done < blackListedQualityChecked.txt    
+	else
+		touch blackListedQualityChecked.txt
+	
+	fi
 
 	paste matrix/matrix.tab *_FINALCOLUMN > final_matrix.tab
 	tr '\n' ' ' < names/sample_names > names_heatmap
 
 	heatmap.py final_matrix.tab names_heatmap
+	
 	"""
 }
 
@@ -789,10 +795,12 @@ process filterGeneAlignments {
 	done
 
 	# BlackList low quality user samples and then make a file with user sample names
-	while read -r removeMe; do
-		mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
-	done < blackListed.txt
-		
+	if [[ -s blackListed.txt ]]; then
+		while read -r removeMe; do
+			mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
+		done < blackListed.txt
+	fi
+	
 	for sample in sampleGenes/*fasta; do
 
 		sampleName=\$(basename "\${sample%.fasta}")
