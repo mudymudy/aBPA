@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from scipy.cluster.hierarchy import linkage, dendrogram
 import matplotlib
-sys.setrecursionlimit(2000)
+sys.setrecursionlimit(20000)
 import fastcluster
 
 '''
