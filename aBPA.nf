@@ -769,7 +769,8 @@ process filterGeneAlignments {
 	script:
 	"""
 	#!/bin/bash
-	# Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments
+
+	echo -e "Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments\\n"
 
 	for file in genes/*.aln.fas; do
 		name=\$(basename "\${file%.aln.fas}")
@@ -777,8 +778,9 @@ process filterGeneAlignments {
 		awk '/^>/ {sub(/;.*/, "", \$0)} {print}' TMP"\$name" > "\${name}_AlnSeq.fasta"
 		rm TMP"\$name"
 	done
-	
-	# Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments, but for alignments ending with *fasta
+	echo -e "Done\\n"
+
+	echo -e  "Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments, but for alignments ending with *fasta\\n"
 
         for file in genes/*.fasta; do
                 name=\$(basename "\${file%.fasta}")
@@ -787,25 +789,40 @@ process filterGeneAlignments {
                 rm TMP"\$name"
         done
 	
+	echo -e "Done\\n"
 
-	# Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments
+	echo -e "Replace ~ characters with _ and grep sequences from user samples using gene alignments filenames to incorporate those sequences to the alignments\\n"
+	
 	for i in *_AlnSeq.fasta; do	
 		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 		mv "\$i" "\${name}_AlnSeq.fasta"
 	done
 
-	# BlackList low quality user samples and then make a file with user sample names
+	echo -e "Done\\n"
+
+	echo -e "BlackList low quality user samples and then make a file with user sample names\\n"
+	
 	if [[ -s blackListed.txt ]]; then
 		while read -r removeMe; do
 			mv sampleGenes/extractedSequences"\${removeMe}.fasta" sampleGenes/"\${removeMe}blackListed.txt"
+			echo ""\${removeMe}" has been removed from analysis due to low quality.\\n"
 		done < blackListed.txt
+	else
+		echo -e "Every sample passed quality checks.\\n"
 	fi
-	
+
+	echo -e "Done\\n"
+
+	echo -e "Collect sample names after quality checks\\n"
+
 	for sample in sampleGenes/*fasta; do
 
 		sampleName=\$(basename "\${sample%.fasta}")
 		echo "\${sampleName}" >> userSampleNames.txt
+		echo -e ""\${sampleName}" has been added to userSampleNames.txt\\n"
 	done
+
+	echo -e "Done\\n"
 
         for i in *_AlnSeq.fasta; do
                 name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
