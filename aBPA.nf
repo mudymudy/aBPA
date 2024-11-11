@@ -116,32 +116,6 @@ if (params.help) {
 
 
 /*
- * As the name suggest, it will just generate the whole pipeline directory structure.
- */
-
-process dirStructure {
-
-	input:
-	path makeDir
-
-	script:
-	"""
-	#!/bin/bash
-	mkdir -p "${makeDir}/NCBI/GFF"
-	mkdir -p "${makeDir}/NCBI/FASTA"
-	mkdir -p "${makeDir}/CLUSTERING"
-	mkdir -p "${makeDir}/PROKKA/GFF"
-	mkdir -p "${makeDir}/PANGENOME"
-	mkdir -p "${makeDir}/ALIGNMENTS"
-	mkdir -p "${makeDir}/NORMALIZATION"
-	mkdir -p "${makeDir}/MATRIX"
-	mkdir -p "${makeDir}/PLOTS"
-	mkdir -p "${makeDir}/HETEROPLASMY/intermediate_files"
-	mkdir -p "${makeDir}/HETEROPLASMY/distributions"
-	"""
-}
-
-/*
  * entrez() will download FASTA and GenBank files from NCBI as long as a taxonomical ID was provided (mandatory value)
  */
 
@@ -244,9 +218,9 @@ process fastaDatabase {
 	path 'clustered_sequences.fasta' , emit: theFastaDatabase
 	path 'cleanedFasta/*fna', emit: validFasta
 	path 'cleanedGff/*gbff', emit: validGff
+	path 'fastaDatabase.log', emit: fastaDatabase
 
 	script:
-
 	"""
 	parseTest.py gff > parseTest.txt
 	grep "is not a valid GenBank file" parseTest.txt | awk '{print \$1}' | sed -e 's/gff\\///g' > blackListed.txt
@@ -1562,9 +1536,102 @@ process blastMe {
 }
 
 
-workflow {
-	dirStructure(resultsDir)
+process getResults {
 
+	input:
+	path makeDir
+	path checkedFastas, stageAs: 'checkedFasta/*'
+	path checkedGffs, stageAs: 'checkedGff/*'
+	path fastaDatabase, stageAs: 'fastaDatabase.log'
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+	path
+
+	output:
+	stdout
+
+	script:
+	"""
+	#!/bin/bash
+
+	mkdir -p "${makeDir}/modernData/"
+
+	mv checkedFasta/* "${makeDir}/modernData/"
+	mv checkedGff/* "${makeDir}/modernData/"
+	mv fastaDatabase.log "${makeDir}/modernData/"
+
+
+	"${makeDir}/CLUSTERING"
+	"${makeDir}/PROKKA/GFF"
+	"${makeDir}/PANGENOME"
+	"${makeDir}/ALIGNMENTS"
+	"${makeDir}/NORMALIZATION"
+	"${makeDir}/MATRIX"
+	"${makeDir}/PLOTS"
+	"${makeDir}/HETEROPLASMY/intermediate_files"
+	"${makeDir}/HETEROPLASMY/distributions"
+	"""
+}
+
+workflow {
 	if (!params.trustedGenomes) {
 		entrez(downloadGenomes, taxID, resultsDir)
 		fastaFiles = entrez.out.fastaFiles
