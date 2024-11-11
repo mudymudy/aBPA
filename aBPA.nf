@@ -212,6 +212,7 @@ process entrez {
 
 
 	done
+	cat .command.out >> entrez.log
 	"""
 }
 
@@ -259,6 +260,7 @@ process fastaDatabase {
 	mv fasta cleanedFasta
 	mv gff cleanedGff
 
+	cat .command.out >> fastaDatabase.log
 	"""
 }
 
@@ -279,6 +281,7 @@ process clustering {
 	"""
 	#!/bin/bash
 	cd-hit-est -i $fastaDB -o clustered_non_redundant_genes.fasta -c $clustering -T $threadsGlobal -d 0 -g 1 -M 0
+	cat .command.out >> clustering.log
 	"""
 }
 
@@ -313,6 +316,7 @@ process prokkaMakeAnnotations {
 		mv "\$sample"/*gff filteredGFF/"\${name}.gff"
 	done
 
+	cat .command.out >> prokkaMakeAnnotations.log
 	"""
 }
 
@@ -334,6 +338,7 @@ process makePangenome {
 	"""
 	panaroo -i filteredGFF/*.gff -o ./ --clean-mode $pangenomeMode -a core --core_threshold $pangenomeThreshold -t $threadsGlobal
 
+	cat .command.out >> makePangenome.log
 	"""
 }
 
@@ -392,6 +397,7 @@ process alignment {
 	done
 
 	rm *sam *sai *_lg.bam *_qc.bam *_sorted_mappedreads.bam*
+	cat .command.out >> alignment.log
 	"""
 }
 
@@ -447,6 +453,7 @@ process alignmentSummary {
                 samtools idxstats "\$i" | awk '{sum += \$2} END {print sum}' > "\${samplename}_refLength.txt"
                 samtools coverage "\$i" | awk -v samplename="\$samplename" 'NR>1 {print samplename, \$1, \$6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t \$'\t' >> completenessSummary.tab
         done
+	cat .command.out >> alignmentSummary.log
 	"""
 }
 
