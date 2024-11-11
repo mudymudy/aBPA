@@ -218,7 +218,7 @@ process fastaDatabase {
 	path 'clustered_sequences.fasta' , emit: theFastaDatabase
 	path 'cleanedFasta/*fna', emit: validFasta
 	path 'cleanedGff/*gbff', emit: validGff
-	path 'fastaDatabase.log', emit: fastaDatabase
+	path 'fastaDatabase.log', emit: fastaDatabaseLogFile
 
 	script:
 	"""
@@ -250,7 +250,7 @@ process clustering {
 
 	output:
 	path "clustered_non_redundant_genes.fasta", emit: clusteredDatabase
-	
+	path "clustering.log", emit: clusteringLog
 	script:
 	"""
 	#!/bin/bash
@@ -271,6 +271,8 @@ process prokkaMakeAnnotations {
 	output:
 	path '*_fromProkka' , emit: prokkaOut
 	path 'filteredGFF/*gff', emit: prokkaGFF
+	path 'prokkaMakeAnnotations.log', emit: prokkaLogfile
+
 	script:
 	"""
 	ls -l gff | awk 'NR==2{print \$NF}' > first.txt
@@ -1542,68 +1544,15 @@ process getResults {
 	path makeDir
 	path checkedFastas, stageAs: 'checkedFasta/*'
 	path checkedGffs, stageAs: 'checkedGff/*'
-	path fastaDatabase, stageAs: 'fastaDatabase.log'
+	path fastaDatabaseLog, stageAs: 'fastaDatabase.log'
+	path fastaDatabaseSeqs, stageAs: 'clusteredSequences.fasta'
+	path clusteredSequences, stageAs: 'clusteredNonRedundantGenes.fasta'
+	path clusteringLogFile, stageAs: 'clustering.log'
+	path prokkaGff, stageAs: 'prokkaGff/*'
+	path prokkaLog, stageAs: 'prokka.log'
 	path
 	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
-	path
+
 
 	output:
 	stdout
@@ -1618,10 +1567,17 @@ process getResults {
 	mv checkedGff/* "${makeDir}/modernData/"
 	mv fastaDatabase.log "${makeDir}/modernData/"
 
+	mkdir -p "${makeDir}/clusteredSequences"
 
-	"${makeDir}/CLUSTERING"
-	"${makeDir}/PROKKA/GFF"
-	"${makeDir}/PANGENOME"
+	mv clustered_non_redundant_genes.fasta "${makeDir}/clusteredSequences/"
+	mv clustering.log "${makeDir}/clusteredSequences/"
+
+	mkdir -p "${makeDir}/PROKKA/"
+
+	mv prokkaGff/* "${makeDir}/PROKKA/"
+	mv prokka.log "${makeDir}/PROKKA/"
+
+"${makeDir}/PANGENOME"
 	"${makeDir}/ALIGNMENTS"
 	"${makeDir}/NORMALIZATION"
 	"${makeDir}/MATRIX"
@@ -1676,4 +1632,8 @@ workflow {
 	startingTree(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
 	findRecombinationSpots(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, startingTree.out.startingTreeMauveFasta, startingTree.out.kappa)
 	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, blastMe.out.panGenomeReferenceDB)
+	getResults(
+	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
+	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,    
+	)
 }
