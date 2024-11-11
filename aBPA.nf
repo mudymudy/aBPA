@@ -309,6 +309,7 @@ process makePangenome {
 	path 'pan_genome_reference.fa' , emit: panSequence
 	path 'gene_presence_absence.Rtab' , emit: initialMatrix
 	path 'aligned_gene_sequences/*' , emit: alignedGenesSeqs
+	path 'makePangenome.log', emit: panarooLog
 
 	script:
 	"""
@@ -1550,9 +1551,10 @@ process getResults {
 	path clusteringLogFile, stageAs: 'clustering.log'
 	path prokkaGff, stageAs: 'prokkaGff/*'
 	path prokkaLog, stageAs: 'prokka.log'
+	path panarooLog, stageAs: 'makePangenome.log'
+	path genesMSA, stageAs: 'geneMSA/*'
+	path panrefG, stageAs: 'pangenomeReferenceGenome.fasta'
 	path
-	path
-
 
 	output:
 	stdout
@@ -1572,13 +1574,19 @@ process getResults {
 	mv clustered_non_redundant_genes.fasta "${makeDir}/clusteredSequences/"
 	mv clustering.log "${makeDir}/clusteredSequences/"
 
-	mkdir -p "${makeDir}/PROKKA/"
+	mkdir -p "${makeDir}/prokkaResults/"
 
-	mv prokkaGff/* "${makeDir}/PROKKA/"
-	mv prokka.log "${makeDir}/PROKKA/"
+	mv prokkaGff/* "${makeDir}/prokkaResults/"
+	mv prokka.log "${makeDir}/prokkaResults/"
 
-"${makeDir}/PANGENOME"
-	"${makeDir}/ALIGNMENTS"
+	mkdir -p "${makeDir}/pangenomeFiles"
+
+	mv makePangenome.log "${makeDir}/pangenomeFiles/"
+	mv geneMSA/* "${makeDir}/pangenomeFiles/"
+	mv pangenomeReferenceGenome.fasta "${makeDir}/pangenomeFiles/"
+
+	mkdir -p "${makeDir}/ALIGNMENTS"
+
 	"${makeDir}/NORMALIZATION"
 	"${makeDir}/MATRIX"
 	"${makeDir}/PLOTS"
@@ -1634,6 +1642,7 @@ workflow {
 	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, blastMe.out.panGenomeReferenceDB)
 	getResults(
 	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
-	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,    
+	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,  makePangenome.out.panarooLog,
+	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, 
 	)
 }
