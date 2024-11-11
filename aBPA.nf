@@ -893,13 +893,22 @@ process filterGeneAlignments {
 		
 		while read -r sampleName; do
 			newVariableName=">\$sampleName"
-			if grep -q "\$newVariableName" "\$file" && [[ "\$newVariableName" != "\$file" ]]; then
-				grep "\$newVariableName" "\$file" >> "\${sampleName}_headers.txt"
-				wrongName=\$(cat "\${sampleName}_headers.txt")
-				sed -i -e "s/\${wrongName}/\${geneName}/g" "\$file"
-				echo -e "\$wrongName name was found but it should have been "\$newVariableName" instead. Fixed"
+
+			matches=\$(grep "\$sampleName" "\$file")
+
+			if [[ -n "\$matches" ]]; then
+	
+				while IFS= read -r matchedLine; do
+	
+					if [[ "\$matchedLine" != "\$newVariableName" ]]; then
+
+						sed -i -e "s/\${matchedLine}/\${newVariableName}/g" "\$file"
+						echo -e "\$matchedLine name was found but it should have been "\$newVariableName" instead. Fixed"
+					fi
+				done <<< "\$matches"
 			else
 				echo -e "It seems everything was okay for \$newVariableName in \$file."
+
 			fi
 
 		done < modernSampleNames.txt
