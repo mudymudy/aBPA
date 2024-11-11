@@ -824,30 +824,38 @@ process filterGeneAlignments {
 
 	echo -e "Done\\n"
 
+	echo -e "Adding user sample genes sequences to each particular gene MSA and replace gene name with sample name\\n"
+
         for i in *_AlnSeq.fasta; do
                 name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
-
+		echo -e "Reading "\${name}" MSA file\\n"
                 for sample in sampleGenes/*fasta; do
 			sed -i -e 's/~/_/g' "\$sample"
 			sampleName=\$(basename "\${sample%.fasta}")
+			echo -e "Adding "\${sampleName}" gene sequences into "\${name}" MSA file\\n"
                         grep -w -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
                 done
         done
 
+	echo -e "Done\\n"
+
 	# Add the outgroup
 	sed -i -e 's/~/_/g' outgroup
+	echo -e "Adding outgroup gene sequences into each gene MSA file\\n"
 
 	for i in *_AlnSeq.fasta; do
 		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
 		grep -w -A 1 "\$name" outgroup | awk -v outgroup="outgroup" '/^>/ {sub(/^>.*/, ">" outgroup, \$0)} {print}' >> "\${i}"
 	done
 
-	# Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n's
-	
-	for i in *_AlnSeq.fasta; do
+	echo -e "Done\\n"
 
+	# Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n's
+	echo -e "Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n\\n"
+	for i in *_AlnSeq.fasta; do
+		geneName=\$(basename "\$i")
 		numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$i" | wc | awk '{print \$NF}')
-		echo "\$numberOfColumns"
+		echo "Gene \$geneName has \$numberOfColumns nucleotides"
 
 		awk -v numCols="\$numberOfColumns" '{
 			if (\$0 ~ /^>/) {
@@ -860,7 +868,8 @@ process filterGeneAlignments {
 			}
 		}' "\$i" > tmp && mv tmp "\${i}"
 	done
-	
+
+	echo -e "Done\\n"
 	# Make a file with downloaded modern genomes names
 
 	for i in FNA/*.fna; do
@@ -877,7 +886,27 @@ process filterGeneAlignments {
 
 	cat modernSampleNames.txt userSampleNames.txt > sampleNames.txt
 
-	
+	echo -e "Checking if there are Panaroo headers artifacts\\n"
+
+	for file in *_AlnSeq.fasta ; do
+		geneName=\$(basename "\${file}")
+		echo -e "Reading \$geneName gene MSA\\n"
+		
+		while read -r sampleName; do
+			newVariableName=">\$sampleName"
+			if grep -q "\$sampleName" "\$file" && [[ "\$sampleName" != "\$file" ]]; then
+				grep "\$newVariableName" "\$file" >> "\${sampleName}_headers.txt"
+				wrongName=\$(cat "\${sampleName}_headers.txt")
+				sed -i -e "s/\${wrongName}/\${geneName}/g" "\$file"
+				echo -e "\$wrongName name was found but it should have been "\$sampleName" instead. Fixed\\n"
+			else
+				echo -e "It seems everything was okay for \$sampleName in \$file."
+			fi
+
+		done < modernSampleNames.txt
+	done
+
+	echo -e "Done\\n"
 	# If there is missing modern strain, append the sample and fill it with - (gaps;absence of gene; because we trust modern genomes assemblies?)
 	
 	for file in *_AlnSeq.fasta ; do
@@ -917,6 +946,8 @@ process filterGeneAlignments {
                         done < sampleNames.txt
                 fi
         done
+	
+	cat .command.out >> filterGeneAlignments.log
 	"""
 }
 
