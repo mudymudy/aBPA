@@ -832,7 +832,7 @@ process filterGeneAlignments {
                 for sample in sampleGenes/*fasta; do
 			sed -i -e 's/~/_/g' "\$sample"
 			sampleName=\$(basename "\${sample%.fasta}")
-			echo -e "Adding "\${sampleName}" gene sequences into "\${name}" MSA file\\n"
+			echo -e "Adding "\${sampleName}" gene sequences into "\${name}" MSA file"
                         grep -w -A 1 "\$name" "\$sample" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${i}"
                 done
         done
@@ -841,7 +841,7 @@ process filterGeneAlignments {
 
 	# Add the outgroup
 	sed -i -e 's/~/_/g' outgroup
-	echo -e "Adding outgroup gene sequences into each gene MSA file\\n"
+	echo -e "Adding outgroup gene sequences into each gene MSA file"
 
 	for i in *_AlnSeq.fasta; do
 		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
@@ -851,11 +851,13 @@ process filterGeneAlignments {
 	echo -e "Done\\n"
 
 	# Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n's
+
 	echo -e "Take the total lenght of the gene sequence and then fill incomplete user samples gene sequences with n\\n"
+
 	for i in *_AlnSeq.fasta; do
 		geneName=\$(basename "\$i")
 		numberOfColumns=\$(awk 'NR==2 {print \$0}' "\$i" | wc | awk '{print \$NF}')
-		echo "Gene \$geneName has \$numberOfColumns nucleotides"
+		echo -e "Gene \$geneName has \$numberOfColumns nucleotides"
 
 		awk -v numCols="\$numberOfColumns" '{
 			if (\$0 ~ /^>/) {
@@ -878,29 +880,26 @@ process filterGeneAlignments {
 	done
 	
 	echo outgroup >> modernSampleNames.txt
-
-
-	
 	
 	# Make a file with every sample combined
 
 	cat modernSampleNames.txt userSampleNames.txt > sampleNames.txt
 
-	echo -e "Checking if there are Panaroo headers artifacts\\n"
+	echo -e "Checking if there are Panaroo headers artifacts"
 
 	for file in *_AlnSeq.fasta ; do
 		geneName=\$(basename "\${file}")
-		echo -e "Reading \$geneName gene MSA\\n"
+		echo -e "Reading \$geneName gene MSA"
 		
 		while read -r sampleName; do
 			newVariableName=">\$sampleName"
-			if grep -q "\$sampleName" "\$file" && [[ "\$sampleName" != "\$file" ]]; then
+			if grep -q "\$newVariableName" "\$file" && [[ "\$newVariableName" != "\$file" ]]; then
 				grep "\$newVariableName" "\$file" >> "\${sampleName}_headers.txt"
 				wrongName=\$(cat "\${sampleName}_headers.txt")
 				sed -i -e "s/\${wrongName}/\${geneName}/g" "\$file"
-				echo -e "\$wrongName name was found but it should have been "\$sampleName" instead. Fixed\\n"
+				echo -e "\$wrongName name was found but it should have been "\$newVariableName" instead. Fixed"
 			else
-				echo -e "It seems everything was okay for \$sampleName in \$file."
+				echo -e "It seems everything was okay for \$newVariableName in \$file."
 			fi
 
 		done < modernSampleNames.txt
