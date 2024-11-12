@@ -1644,6 +1644,12 @@ process getResults {
 	path RefLenghts, stageAs: '*'
 	path RawCoverage, stageAs: '*'
 	path CompletenessSummary, stageAs: 'completenessSummary.tab'
+	path FinalMatrix, stageAs: 'finalMatrix.tab'
+	path presenceAbsenceplots, stageAs: '*'
+	path MaskedMatrixGenesOnlyAncient, stageAs: 'maskedMatrixGenesOnlyAncient.txt'
+	path MaskedMatrixGenesUbiquitous, stageAs: 'maskedMatrixGenesUbiquitous.txt'
+	path MaskedMatrixGenesNoUbiquitous, stageAs: 'maskedMatrixGenesNoUbiquitous.txt'
+	path GenesAbovePercentSeries, stageAs: 'genesAbovePercentSeries.txt'
 
 	output:
 	stdout
@@ -1659,8 +1665,8 @@ process getResults {
 	mv fastaDatabase.log "${makeDir}/modernData/"
 
 	mkdir -p "${makeDir}/clusteredSequences"
-
-	mv clustered_non_redundant_genes.fasta "${makeDir}/clusteredSequences/"
+	mv clusteredSequences.fasta "${makeDir}/clusteredSequences/"
+	mv clusteredNonRedundantGenes.fasta "${makeDir}/clusteredSequences/"
 	mv clustering.log "${makeDir}/clusteredSequences/"
 
 	mkdir -p "${makeDir}/prokkaResults/"
@@ -1684,10 +1690,18 @@ process getResults {
 	mv completenessSummary.tab "${makeDir}/alignmentResults/"
 
 	mkdir -p "${makeDir}/matrixResults"
+	mv finalMatrix.tab "${makeDir}/matrixResults"
 
-	
+	mkdir -p "${makeDir}/MSAs"
+	mv maskedMatrixGenesUbiquitous.txt "${makeDir}/MSAs/"
+	mv maskedMatrixGenesOnlyAncient.txt "${makeDir}/MSAs/"
+	mv maskedMatrixGenesNoUbiquitous.txt "${makeDir}/MSAs/"
+	mv genesAbovePercentSeries.txt "${makeDir}/MSAs/"
+
 	mkdir -p "${makeDir}/plotsResults"
-	
+	mv *png "${makeDir}/plotsResults"
+
+
 	"""
 }
 
@@ -1740,6 +1754,8 @@ workflow {
 	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
 	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,  makePangenome.out.panarooLog,
 	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, updateNormalization.out.geneNormalizedUpdated, normalizationFunction.out.globalMeanCoverage,
-	alignmentSummary.out.postAlignmentFiles, alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage, alignmentSummary.out.completenessSummary
+	alignmentSummary.out.postAlignmentFiles, alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage, alignmentSummary.out.completenessSummary, buildHeatmap.out.finalMatrix,
+	buildHeatmap.out.presenceAbsence, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.maskedMatrixGenesNoUbiquitous,
+	buildHeatmap.out.genesAbovePercentSeries,
 	)
 }
