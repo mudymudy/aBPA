@@ -1731,6 +1731,5 @@ workflow {
 	getResults(
 	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
 	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,  makePangenome.out.panarooLog,
-	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, 
-	)
+	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference)
 }
