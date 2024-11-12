@@ -1643,7 +1643,13 @@ process getResults {
 	path panarooLog, stageAs: 'makePangenome.log'
 	path genesMSA, stageAs: 'geneMSA/*'
 	path panrefG, stageAs: 'pangenomeReferenceGenome.fasta'
-	
+	path geneNormalizedUpdated, stageAs: 'geneNormalizedUpdated.tab'
+	path globalMeanCoverage, stageAs: 'globalMeanCoverage.tab'
+	path PostAlignmentFiles, stageAs: '*'
+	path RefLenghts, stageAs: '*'
+	path RawCoverage, stageAs: '*'
+	path CompletenessSummary, stageAs: 'completenessSummary.tab'
+
 	output:
 	stdout
 
@@ -1673,13 +1679,20 @@ process getResults {
 	mv geneMSA/* "${makeDir}/pangenomeFiles/"
 	mv pangenomeReferenceGenome.fasta "${makeDir}/pangenomeFiles/"
 
-	mkdir -p "${makeDir}/ALIGNMENTS"
+	mkdir -p "${makeDir}/alignmentResults"
 
-	"${makeDir}/NORMALIZATION"
-	"${makeDir}/MATRIX"
-	"${makeDir}/PLOTS"
-	"${makeDir}/HETEROPLASMY/intermediate_files"
-	"${makeDir}/HETEROPLASMY/distributions"
+	mv geneNormalizedUpdated.tab "${makeDir}/alignmentResults/"
+	mv globalMeanCoverage.tab "${makeDir}/alignmentResults/"
+	mv *_refLength.txt "${makeDir}/alignmentResults/"
+	mv *Coverage.txt "${makeDir}/alignmentResults/"
+	mv *bam "${makeDir}/alignmentResults/"
+	mv completenessSummary.tab "${makeDir}/alignmentResults/"
+
+	mkdir -p "${makeDir}/matrixResults"
+
+	
+	mkdir -p "${makeDir}/plotsResults"
+	
 	"""
 }
 
@@ -1731,5 +1744,7 @@ workflow {
 	getResults(
 	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
 	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,  makePangenome.out.panarooLog,
-	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference)
+	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, updateNormalization.out.geneNormalizedUpdated, normalizationFunction.out.globalMeanCoverage,
+	alignmentSummary.out.postAlignmentFiles, alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage, alignmentSummary.out.completenessSummary
+	)
 }
