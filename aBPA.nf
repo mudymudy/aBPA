@@ -1127,8 +1127,8 @@ process makeMSA {
 
 	for fasta in filteredGenes/*.fasta; do
     		echo "Processing \$fasta file"
-
-    		output_file="sorted_\$fasta"
+		name=\$(basename "\${fasta%_Filtered.fasta}")
+    		output_file="\$name_sorted"
     		> "\$output_file"  # Initialize (or clear) the output file
 
 
@@ -1136,8 +1136,8 @@ process makeMSA {
         		awk -v headerName="\$header" '
             		\$0 ~ headerName {
                 		print \$0     # Print the matched header
-                		getline      # Get the sequence line and store it in 0
-                		print \$0     # Print the sequence line
+                		getline      # Get the sequence line after the header and store it in \$0
+                		print \$0     # Print the sequene
             		}
         		' "\$fasta" >> filteredGenes/"\$output_file"
     		done < filteredGenes/INDEX
@@ -1146,7 +1146,7 @@ process makeMSA {
 	done
 
 	# Check that this worked
-	for i in filteredGenes/sorted*.fasta; do
+	for i in filteredGenes/*_sorted; do
     		awk '/^>/ {print \$0}' "\$i" > filteredGenes/currentHeaders
 
     		# Compare with INDEX file. It should be the same but if not, point that out
@@ -1171,36 +1171,39 @@ process makeMSA {
 
 	# Check that every MSA contains the same amount of nucleotides (outgroup or user samples can generate inserts sometimes?)
 
-	for gene in $(cat maskedMatrixGenesNoUbiquitous.txt); do
+	for gene in filteredGenes/*_sorted; do
 
-		geneName=$(basename "${gene}_Filtered.fasta")
-		echo "Reading $geneName file"
-		awk '!/^>/ {print length}' "$geneName" >> filtering/"${gene}"filtering.txt
-		echo "Done"
+		echo "Reading \$gene file"
+		awk '!/^>/ {print length}' "\$gene" >> filtering/"\${gene%_sorted}"testingIntegrity.txt
+		echo -e "Done"
 	done
 
-	for file in *txt; do
-	    	if [[ -f "$file" ]]; then
-	        # Get unique values in the first column
-        	unique_values=$(cut -d ' ' -f 1 "$file" | sort | uniq)
+	for file in filteredGenes/*testingIntegrity.txt; do
+	    	if [[ -f "\$file" ]]; then
+	        	# Get unique values in the first column
+        		uniqueValues=\$(cut -d ' ' -f 1 "\$file" | sort | uniq)
 
-        	# Count the number of unique values
-        	unique_count=$(echo "$unique_values" | wc -l)
+        		# Count the number of unique values
+        		uniqueCount=\$(echo "\$uniqueValues" | wc -l)
 
         		# Delete the file if there is only one unique value
-        		if [[ $unique_count -eq 1 ]]; then
-	            		rm "$file"
-            			echo "Deleted $file (only 1 unique value)"
+        		if [[ \$uniqueCount -eq 1 ]]; then
+	            		rm "\$file"
+            			echo "Deleted \$file (only 1 unique value)"
         		else
-	            		echo "Kept $file (more than 1 unique value)"
+	            		echo "Kept \$file (more than 1 unique value, means problem)"
+				mv "\$file" filteredGenes/"\${file%testingIntegrity.txt}_problematicFile.txt"
         		fi
     		fi
 	done
 
+	mkdir -p filteredGenes/TMPfiles
 
+	mv *_Filtered.fasta filteredGenes/TMPfiles
 
-
-
+	for file in filteredGenes/*_sorted; do
+		mv "\$file" filteredGenes/"\${file%_sorted}_Filtered.fasta"
+	done
 
 
 	touch genesAbovePercentMSA.fasta
