@@ -1643,8 +1643,7 @@ process getResults {
 	path panarooLog, stageAs: 'makePangenome.log'
 	path genesMSA, stageAs: 'geneMSA/*'
 	path panrefG, stageAs: 'pangenomeReferenceGenome.fasta'
-	path
-
+	
 	output:
 	stdout
 
