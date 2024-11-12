@@ -1043,11 +1043,6 @@ process makeMSA {
 		}
 		!skip' "\$file" > specialCases/"\${name}_cleaned.fasta"
 
-
-
-
-
-
 		for indexSeqs in specialCases/"\${name}Seqs_"*; do
 			geneName=\$(basename "\${indexSeqs%Seqs_*}")
 			sampleName=\$(basename "\${indexSeqs##*Seqs_}")
@@ -1142,7 +1137,7 @@ process makeMSA {
         		' "\$fasta" >> filteredGenes/"\$output_file"
     		done < filteredGenes/INDEX
 
-    		echo "Finished sorting $fasta to $output_file"
+    		echo "Finished sorting \$fasta to \$output_file"
 	done
 
 	# Check that this worked
