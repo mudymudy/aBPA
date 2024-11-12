@@ -1117,6 +1117,92 @@ process makeMSA {
 	done
 
 
+	# More quality controls and sorting of MSA
+
+	echo -e "Creating INDEX file"
+	irstFile=\$(ls -1 filteredGenes/ | awk 'NR==1 {print \$0}') && awk '/^>/ {print \$0}' filteredGenes/"\$firstFile" > filteredGenes/INDEX
+	echo -e "Done\\n"
+
+	# Sorting everything based on first file
+
+	for fasta in filteredGenes/*.fasta; do
+    		echo "Processing \$fasta file"
+
+    		output_file="sorted_\$fasta"
+    		> "\$output_file"  # Initialize (or clear) the output file
+
+
+		while read -r header; do
+        		awk -v headerName="\$header" '
+            		\$0 ~ headerName {
+                		print \$0     # Print the matched header
+                		getline      # Get the sequence line and store it in 0
+                		print \$0     # Print the sequence line
+            		}
+        		' "\$fasta" >> filteredGenes/"\$output_file"
+    		done < filteredGenes/INDEX
+
+    		echo "Finished sorting $fasta to $output_file"
+	done
+
+	# Check that this worked
+	for i in filteredGenes/sorted*.fasta; do
+    		awk '/^>/ {print \$0}' "\$i" > filteredGenes/currentHeaders
+
+    		# Compare with INDEX file. It should be the same but if not, point that out
+
+    		if ! diff -q filteredGenes/INDEX filteredGenes/currentHeaders >/dev/null; then
+        		echo "Headers in \$i differ from INDEX." >> filteredGenes/notSorted
+    		else
+        		echo "Headers in \$i match INDEX." >> filteredGenes/sortedSuccesfully
+    		fi
+	done
+
+	if [ -f filteredGenes/notSorted ]; then
+    		echo "There is one or more files with sorting problems. Check notSorted file for more details"
+	else
+    		echo "It seems every file is sorted. Moving on"
+	fi
+	
+	# Clean up temporary file
+	rm filteredGenes/currentHeaders
+
+
+
+	# Check that every MSA contains the same amount of nucleotides (outgroup or user samples can generate inserts sometimes?)
+
+	for gene in $(cat maskedMatrixGenesNoUbiquitous.txt); do
+
+		geneName=$(basename "${gene}_Filtered.fasta")
+		echo "Reading $geneName file"
+		awk '!/^>/ {print length}' "$geneName" >> filtering/"${gene}"filtering.txt
+		echo "Done"
+	done
+
+	for file in *txt; do
+	    	if [[ -f "$file" ]]; then
+	        # Get unique values in the first column
+        	unique_values=$(cut -d ' ' -f 1 "$file" | sort | uniq)
+
+        	# Count the number of unique values
+        	unique_count=$(echo "$unique_values" | wc -l)
+
+        		# Delete the file if there is only one unique value
+        		if [[ $unique_count -eq 1 ]]; then
+	            		rm "$file"
+            			echo "Deleted $file (only 1 unique value)"
+        		else
+	            		echo "Kept $file (more than 1 unique value)"
+        		fi
+    		fi
+	done
+
+
+
+
+
+
+
 	touch genesAbovePercentMSA.fasta
 	touch maskedMatrixGenesUbiquitousMSA.fasta
 	touch maskedMatrixGenesOnlyAncientMSA.fasta
