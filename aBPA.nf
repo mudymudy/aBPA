@@ -1123,9 +1123,6 @@ process makeMSA {
 	for fasta in filteredGenes/*.fasta; do
     		echo "Processing \$fasta file"
 		name=\$(basename "\${fasta%_Filtered.fasta}")
-    		output_file="\$name_sorted"
-    		> "\$output_file"  # Initialize (or clear) the output file
-
 
 		while read -r header; do
         		awk -v headerName="\$header" '
@@ -1134,10 +1131,10 @@ process makeMSA {
                 		getline      # Get the sequence line after the header and store it in \$0
                 		print \$0     # Print the sequene
             		}
-        		' "\$fasta" >> filteredGenes/"\$output_file"
+        		' "\$fasta" >> filteredGenes/"\${name}_sorted"
     		done < filteredGenes/INDEX
 
-    		echo "Finished sorting \$fasta to \$output_file"
+    		echo "Finished sorting \$fasta to \${name}_sorted"
 	done
 
 	# Check that this worked
