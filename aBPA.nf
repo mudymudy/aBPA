@@ -1108,7 +1108,7 @@ process filterGeneAlignments {
 
     		if ! diff -q filteredGenes/INDEX filteredGenes/currentHeaders >/dev/null; then
         		echo "Headers in \$i differ from INDEX." >> filteredGenes/notSorted
-        		mv "$i" specialCases/
+        		mv "\$i" specialCases/
     		else
         		echo "Headers in \$i match INDEX." >> filteredGenes/sortedSuccesfully
     		fi
