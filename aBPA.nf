@@ -774,13 +774,13 @@ process filterGeneAlignments {
 	for i in AlnSeq/*_AlnSeq.fasta; do
     		# Create a temporary name with '_TMP' to avoid overwriting
     		tmpname="\${i}_TMP"
-    		mv "$i" "$tmpname"
+    		mv "\$i" "\$tmpname"
 		    
 	    	# Fix the name by replacing ~ with _
-	    	fixedname=$(basename "${tmpname%_TMP}" | sed -e 's/~/_/g')
+	    	fixedname=\$(basename "\${tmpname%_TMP}" | sed -e 's/~/_/g')
 	    	
     		# Rename the file with the fixed name
-    		mv "$tmpname" "AlnSeq/$fixedname"
+    		mv "\$tmpname" "AlnSeq/\$fixedname"
 	done
 	echo -e "Done\\n"
 	
