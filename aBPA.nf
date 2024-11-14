@@ -755,6 +755,8 @@ process filterGeneAlignments {
 	"""
 	#!/bin/bash
 
+	mkdir -p AlnSeq/
+
 	echo -e "Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments"
 	for file in genes/*.aln.fas; do
 		name=\$(basename "\${file%.aln.fas}")
