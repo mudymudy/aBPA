@@ -753,7 +753,7 @@ process filterGeneAlignments {
 
 	script:
 	"""
-#!/bin/bash
+	#!/bin/bash
 
 	echo -e "Fixing FASTA headers and extension of sequences with seqtk in existing gene alignments"
 	for file in genes/*.aln.fas; do
@@ -769,12 +769,21 @@ process filterGeneAlignments {
 	done
 	echo -e "Done\\n"
 
+
 	echo -e "Replace ~ characters with _ in gene MSA filenames"
-	for i in AlnSeq/*_AlnSeq.fasta; do	
-		name=\$(basename "\${i%_AlnSeq.fasta}" | sed -e 's/~/_/g')
-		mv "\$i" "\${name}_AlnSeq.fasta"
+	for i in AlnSeq/*_AlnSeq.fasta; do
+    		# Create a temporary name with '_TMP' to avoid overwriting
+    		tmpname="\${i}_TMP"
+    		mv "$i" "$tmpname"
+		    
+	    	# Fix the name by replacing ~ with _
+	    	fixedname=$(basename "${tmpname%_TMP}" | sed -e 's/~/_/g')
+	    	
+    		# Rename the file with the fixed name
+    		mv "$tmpname" "AlnSeq/$fixedname"
 	done
 	echo -e "Done\\n"
+	
 
 	echo -e "BlackList low quality user samples and then make a file with user sample names"
 	if [[ -s blackListed.txt ]]; then
@@ -1149,7 +1158,6 @@ process filterGeneAlignments {
 	for file in filteredGenes/*_sorted; do
 		mv "\$file" filteredGenes/"\${file%_sorted}_Filtered.fasta"
 	done
-
 	
 	cat .command.out >> filterGeneAlignments.log
 	"""
