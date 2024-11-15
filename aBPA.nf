@@ -747,7 +747,7 @@ process filterGeneAlignments {
 	path blackListed, stageAs: 'blackListed.txt'
 
 	output:
-	path 'filteredGenes/*.fasta', emit: genesAlnSeq
+	path 'filteredGenes/*_Filtered.fasta', emit: genesAlnSeq
 	path 'sampleNames.txt', emit: sampleNames
 	path 'specialCases/*fasta', emit: specialCases
 
@@ -1127,13 +1127,14 @@ process filterGeneAlignments {
 	echo -e "Check that every MSA contains the same amount of nucleotides"
 	# (outgroup or user samples can generate insertions sometimes?)
 	for gene in filteredGenes/*_sorted; do
-
+		name=\$(basename "\$gene")
 		echo "Reading \$gene file"
-		awk '!/^>/ {print length}' "\$gene" >> filtering/"\${gene%_sorted}"testingIntegrity.txt
+		awk '!/^>/ {print length}' "\$gene" >> filteredGenes/"\${name%_sorted}"_testingIntegrity.txt
 		echo -e "Done"
 	done
 
 	for file in filteredGenes/*testingIntegrity.txt; do
+		name=\$(basename "\$file")
 	    	if [[ -f "\$file" ]]; then
 	        	# Get unique values in the first column
         		uniqueValues=\$(cut -d ' ' -f 1 "\$file" | sort | uniq)
@@ -1147,18 +1148,19 @@ process filterGeneAlignments {
             			echo "Deleted \$file (only 1 unique value)"
         		else
 	            		echo "Kept \$file (more than 1 unique value, means problem)"
-				mv "\$file" filteredGenes/"\${file%testingIntegrity.txt}_problematicFile.txt"
+				mv "\$file" filteredGenes/"\${name%_testingIntegrity.txt}_problematicFile.txt"
         		fi
     		fi
 	done
 
 	for problem in filteredGenes/*_problematicFile.txt; do
 		name=\$(basename "\${problem%_problematicFile.txt}")
-		mv filteredGenes/"\$name"* specialCases/
+		mv filteredGenes/"\${name}"_sorted specialCases/
 	done
 
 	for file in filteredGenes/*_sorted; do
-		mv "\$file" filteredGenes/"\${file%_sorted}_Filtered.fasta"
+		name=\$(basename "\$file")
+		mv "\$file" filteredGenes/"\${name%_sorted}_Filtered.fasta"
 	done
 	
 	cat .command.out >> filterGeneAlignments.log
@@ -1199,10 +1201,16 @@ process makeMSA {
 	touch maskedMatrixGenesOnlyAncientMSA.fasta
 	touch maskedMatrixGenesNoUbiquitousMSA.fasta
 
-	
+	sed -i -e 's/~/_/g' genesAbovePercentSeries.txt
+	sed -i -e 's/~/_/g' maskedMatrixGenesNoUbiquitous.txt
+	sed -i -e 's/~/_/g' maskedMatrixGenesOnlyAncient.txt
+	sed -i -e 's/~/_/g' maskedMatrixGenesUbiquitous.txt
+
+
+
 	while read -r gene; do
 		
-		paste genesAbovePercentMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMP; mv TMP genesAbovePercentMSA.fasta
+		paste genesAbovePercentMSA.fasta genes/"\${gene}_Filtered.fasta" > TMP; mv TMP genesAbovePercentMSA.fasta
 	
 	done < genesAbovePercentSeries.txt
 	
@@ -1212,7 +1220,7 @@ process makeMSA {
 
         while read -r gene; do
 
-                paste maskedMatrixGenesNoUbiquitousMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMP2; mv TMP2 maskedMatrixGenesNoUbiquitousMSA.fasta
+                paste maskedMatrixGenesNoUbiquitousMSA.fasta genes/"\${gene}_Filtered.fasta" > TMP2; mv TMP2 maskedMatrixGenesNoUbiquitousMSA.fasta
 
         done < maskedMatrixGenesNoUbiquitous.txt
 
@@ -1222,7 +1230,7 @@ process makeMSA {
 
         while read -r gene; do
 
-                paste maskedMatrixGenesOnlyAncientMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMPo; mv TMPo maskedMatrixGenesOnlyAncientMSA.fasta
+                paste maskedMatrixGenesOnlyAncientMSA.fasta genes/"\${gene}_Filtered.fasta" > TMPo; mv TMPo maskedMatrixGenesOnlyAncientMSA.fasta
 
         done < maskedMatrixGenesOnlyAncient.txt
 
@@ -1231,7 +1239,7 @@ process makeMSA {
 
         while read -r gene; do
 
-                paste maskedMatrixGenesUbiquitousMSA.fasta filteredGenes/"\${gene}_Filtered.fasta" > TMPU; mv TMPU maskedMatrixGenesUbiquitousMSA.fasta
+                paste maskedMatrixGenesUbiquitousMSA.fasta genes/"\${gene}_Filtered.fasta" > TMPU; mv TMPU maskedMatrixGenesUbiquitousMSA.fasta
 
         done < maskedMatrixGenesUbiquitous.txt
 
@@ -1749,6 +1757,6 @@ workflow {
 	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, updateNormalization.out.geneNormalizedUpdated, normalizationFunction.out.globalMeanCoverage,
 	alignmentSummary.out.postAlignmentFiles, alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage, alignmentSummary.out.completenessSummary, buildHeatmap.out.finalMatrix,
 	buildHeatmap.out.presenceAbsence, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.maskedMatrixGenesNoUbiquitous,
-	buildHeatmap.out.genesAbovePercentSeries,
+	buildHeatmap.out.genesAbovePercentSeries
 	)
 }
