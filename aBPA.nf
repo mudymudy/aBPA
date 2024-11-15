@@ -1444,7 +1444,10 @@ process mapRecombinantsToGenes {
 		    }
 		' "\$i"  > "\$name"_newfileWithExtractedHeadersAndSequences.fasta
 	done
-	
+
+	# Mapping sequences to PanGenomeReference
+	for sample in 
+
 	rm *TMP.fasta	
 	"""
 }
