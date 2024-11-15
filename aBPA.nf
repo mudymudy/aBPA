@@ -1458,7 +1458,10 @@ process treeThreshold {
 	path genesMSA, stageAs: 'genesAbovePercentMSA.fasta'
 
 	output:
-	stdout
+	path 'genesAbovePercentMSA.contree', emit: genesAbovePercentMSAContree
+	path 'genesAbovePercentMSA.iqtree', emit: genesAbovePercentMSAIqtree
+	path 'genesAbovePercentMSA.log', emit: genesAbovePercentMSALog
+	path 'genesAbovePercentMSA.treefile', emit: genesAbovePercentMSATreefile
 
 	script:
 	"""
@@ -1473,7 +1476,10 @@ process treeUbiquitous {
         path ubiquitousMSA, stageAs: 'maskedMatrixGenesUbiquitousMSA.fasta'
 
         output:
-        stdout
+        path 'maskedMatrixGenesUbiquitousMSA.contree', emit: maskedMatrixGenesUbiquitousMSAContree
+	path 'maskedMatrixGenesUbiquitousMSA.iqtree', emit: maskedMatrixGenesUbiquitousMSAIqtree
+	path 'maskedMatrixGenesUbiquitousMSA.log', emit: maskedMatrixGenesUbiquitousMSALog
+	path 'maskedMatrixGenesUbiquitousMSA.treefile', emit: maskedMatrixGenesUbiquitousMSATreefile
 
         script:
         """
@@ -1485,14 +1491,17 @@ process treeNoUbiquitous {
         conda "${projectDir}/envs/iqtree.yaml"
         
         input:
-        path noUbiquitousMSA, stageAs: 'maskedMatrixGenesUbiquitousMSA.fasta'
+        path noUbiquitousMSA, stageAs: 'maskedMatrixGenesNoUbiquitousMSA.fasta'
 
         output:
-        stdout
+        path 'maskedMatrixGenesNoUbiquitousMSA.contree', emit: maskedMatrixGenesNoUbiquitousMSAContree
+	path 'maskedMatrixGenesNoUbiquitousMSA.iqtree', emit: maskedMatrixGenesNoUbiquitousMSAIqtree
+	path 'maskedMatrixGenesNoUbiquitousMSA.log', emit: maskedMatrixGenesNoUbiquitousMSALog
+	path 'maskedMatrixGenesNoUbiquitousMSA.treefile', emit: maskedMatrixGenesNoUbiquitousMSATreefile
 
         script:
         """
-        iqtree -s maskedMatrixGenesUbiquitousMSA.fasta --prefix maskedMatrixGenesUbiquitousMSA -T 10 -B 1000 -m MFP
+        iqtree -s maskedMatrixGenesNoUbiquitousMSA.fasta --prefix maskedMatrixGenesNoUbiquitousMSA -T 10 -B 1000 -m MFP
         """
 }
 
@@ -1504,7 +1513,10 @@ process treeAncient {
         path ancientMSA, stageAs: 'maskedMatrixGenesOnlyAncientMSA.fasta'
 
         output:
-        stdout
+        path 'maskedMatrixGenesOnlyAncientMSA.contree', emit: maskedMatrixGenesOnlyAncientMSAConqtree
+	path 'maskedMatrixGenesOnlyAncientMSA.iqtree', emit: maskedMatrixGenesOnlyAncientMSAIqtree
+	path 'maskedMatrixGenesOnlyAncientMSA.log', emit: maskedMatrixGenesOnlyAncientMSALog
+	path 'maskedMatrixGenesOnlyAncientMSA.treefile', emit: maskedMatrixGenesOnlyAncientMSATreefile
 
         script:
         """
