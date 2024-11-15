@@ -1358,6 +1358,7 @@ process findRecombinationSpots {
 	path MSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
 	path startingTree, stageAs: 'startingTreeMauveFasta.treefile'
 	path kappa, stageAs: 'kappaValue'
+	
 
 	output:
 	path 'recombinantOutputs.importation_status.txt', emit: recombinationMap
@@ -1377,6 +1378,7 @@ process mapRecombinantsToGenes {
 	path recombinationMap, stageAs: 'recombinantOutputs.importation_status.txt'
 	path MSA, stageAs: 'concatenatedSeqtkMauveFastaMSA.fasta'
 	path db, stageAs: 'database/*'
+	path GFF, stageAs: 'gff/*'
 
 	output:
 	stdout
@@ -1750,7 +1752,7 @@ workflow {
 	filterMauveFasta(xmfaToFasta.out.pMauveFastaMSA)
 	startingTree(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA)
 	findRecombinationSpots(filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, startingTree.out.startingTreeMauveFasta, startingTree.out.kappa)
-	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, blastMe.out.panGenomeReferenceDB)
+	mapRecombinantsToGenes(findRecombinationSpots.out.recombinationMap, filterMauveFasta.out.concatenatedSeqtkMauveFastaMSA, blastMe.out.panGenomeReferenceDB, prokkaMakeAnnotations.out.prokkaGFF)
 	getResults(
 	resultsDir, fastaDatabase.out.validFasta , fastaDatabase.out.validGff , fastaDatabase.out.fastaDatabaseLogFile , fastaDatabase.out.theFastaDatabase, 
 	clustering.out.clusteredDatabase, clustering.out.clusteringLog, prokkaMakeAnnotations.out.prokkaGFF, prokkaMakeAnnotations.out.prokkaLogfile,  makePangenome.out.panarooLog,
