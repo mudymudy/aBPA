@@ -1707,15 +1707,15 @@ process getResults {
 	mkdir -p "${makeDir}/matrixResults"
 	mv finalMatrix.tab "${makeDir}/matrixResults"
 
+	mkdir -p "${makeDir}/plotsResults"
+	mv *png "${makeDir}/plotsResults"
+
 	mkdir -p "${makeDir}/MSAs"
 	mv maskedMatrixGenesUbiquitous.txt "${makeDir}/MSAs/"
 	mv maskedMatrixGenesOnlyAncient.txt "${makeDir}/MSAs/"
 	mv maskedMatrixGenesNoUbiquitous.txt "${makeDir}/MSAs/"
 	mv genesAbovePercentSeries.txt "${makeDir}/MSAs/"
-
-	mkdir -p "${makeDir}/plotsResults"
-	mv *png "${makeDir}/plotsResults"
-
+	mv *MSA* "${makeDir}/MSAs/"
 
 	"""
 }
@@ -1771,6 +1771,9 @@ workflow {
 	filterGeneAlignments.out.genesAlnSeq, formattingPangenome.out.panGenomeReference, updateNormalization.out.geneNormalizedUpdated, normalizationFunction.out.globalMeanCoverage,
 	alignmentSummary.out.postAlignmentFiles, alignmentSummary.out.refLenght, alignmentSummary.out.rawCoverage, alignmentSummary.out.completenessSummary, buildHeatmap.out.finalMatrix,
 	buildHeatmap.out.presenceAbsence, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.maskedMatrixGenesNoUbiquitous,
-	buildHeatmap.out.genesAbovePercentSeries
+	buildHeatmap.out.genesAbovePercentSeries, treeThreshold.out.genesAbovePercentMSAIqtree ,treeThreshold.out.genesAbovePercentMSALog , treeThreshold.out.genesAbovePercentMSATreefile,
+	treeUbiquitous.out.maskedMatrixGenesUbiquitousMSAIqtree, treeUbiquitous.out.maskedMatrixGenesUbiquitousMSALog, treeUbiquitous.out.maskedMatrixGenesUbiquitousMSATreefile, 
+	treeNoUbiquitous.out.maskedMatrixGenesNoUbiquitousMSAIqtree , treeNoUbiquitous.out.maskedMatrixGenesNoUbiquitousMSALog , treeNoUbiquitous.out.maskedMatrixGenesNoUbiquitousMSATreefile,
+	treeAncient.out.maskedMatrixGenesOnlyAncientMSAIqtree , treeAncient.out.maskedMatrixGenesOnlyAncientMSALog , treeAncient.out.maskedMatrixGenesOnlyAncientMSATreefile
 	)
 }
