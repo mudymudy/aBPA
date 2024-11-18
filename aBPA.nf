@@ -1446,7 +1446,7 @@ process mapRecombinantsToGenes {
 	done
 
 	# Mapping sequences to PanGenomeReference
-	for sample in 
+	#for sample in 
 
 	rm *TMP.fasta	
 	"""
