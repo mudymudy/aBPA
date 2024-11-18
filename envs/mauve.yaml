@@ -1,0 +1,5 @@
+name: mauve
+channels:
+ - bioconda
+dependencies:
+ - mauve
