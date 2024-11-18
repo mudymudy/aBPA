@@ -1,0 +1,5 @@
+name: phyml
+channels:
+ - bioconda
+dependencies:
+- phyml
