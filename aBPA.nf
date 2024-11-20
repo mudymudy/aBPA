@@ -1456,10 +1456,14 @@ process mapRecombinantsToGenes {
 		' "\$i"  > "\$name"_newfileWithExtractedHeadersAndSequences.fasta
 	done
 
+	rm *TMP.fasta
+	
 	# Mapping sequences to PanGenomeReference
-	#for sample in 
 
-	rm *TMP.fasta	
+	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
+		name=\$(basename "\${sample%_newfileWithExtractedHeadersAndSequences.fasta}")
+		blastn -query "\$sample" -db database/panGenomeReferenceDB -out blastResults"\$name" -outfmt 6
+	done		
 	"""
 }
 
