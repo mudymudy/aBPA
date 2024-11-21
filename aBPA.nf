@@ -1404,20 +1404,20 @@ process mapRecombinantsToGenes {
 	    awk -v name="\$name" -v start="\$beg" -v end="\$end" '
 	    /^>/ {
 	        # Process headers
-	        headerSequence = substr(\$0, 2)  # Remove the ">" to get the header name
-	        isHeader = (headerSequence == name)  # Check if the header matches the target name
+	        headerSequence = substr(\$0, 2)  # remove the ">" thing to get the header name
+	        isHeader = (headerSequence == name)  # check if the header matches the target name
 	
 	        if (isHeader) {
 	            fullSeq = ""  # Reset fullSeq for the new header
-	            currentHeader = name "_seq"  # Create a unique header for this sequence
+	            currentHeader = name "_seq"  # make unique header for this sequence
 	        }
 	    }
 	    !/^>/ && isHeader {
 	        fullSeq = fullSeq \$0   
 	    }
 	    /^>/ && fullSeq != "" {
-	        # Store fullSeq for each unique header when a new header starts
-	        # Remove sequences shorter than 30 bp? To avoid mapping uncertainty
+	        # store fullSeq for each unique header when a new header starts
+	        # remove sequences shorter than 30 bp? To avoid mapping uncertainty
 	        seqTesting = substr(fullSeq, start, end - start + 1)
 	        if (length(seqTesting) >= 30) {
 	            seqArray[currentHeader] = seqTesting
@@ -1425,7 +1425,7 @@ process mapRecombinantsToGenes {
 	        fullSeq = ""
 	    }
 	    END {
-	        # This is for the last entry
+	        # this is for the last entry
 	        if (fullSeq != "") {
 	            seqTesting = substr(fullSeq, start, end - start + 1)
 	            if (length(seqTesting) >= 30) {
@@ -1433,7 +1433,7 @@ process mapRecombinantsToGenes {
 	            }
 	        }
 	        
-	        # Print all stored sequences
+	        # print the sequences
 	        for (header in seqArray) {
 	            printf(">%s\\n%s\\n", header, seqArray[header])
 	        }
@@ -1447,11 +1447,11 @@ process mapRecombinantsToGenes {
 		    BEGIN { count = 0 }  
 		    /^>/ { 
 		        count++  
-		        \$0 = \$0 "_" count  # this just add a counter for each header to make them unique
+		        \$0 = \$0 "_" count  # this just add a counter ID for each header to make them unique
 		        print
 		    } 
 		    !/^>/ { 
-		        print  # Print the sequence line
+		        print  # print the sequence line only
 		    }
 		' "\$i"  > "\$name"_newfileWithExtractedHeadersAndSequences.fasta
 	done
@@ -1465,14 +1465,31 @@ process mapRecombinantsToGenes {
 		blastn -query "\$sample" -db database/panGenomeReferenceDB -out blastResults"\$name" -outfmt 6
 	done	
 
+
+
+
+
+
+ORGANIZE THIS PLS
+
+
+ 
+for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
+    awk '/^>/ {name = $0 ; getline ; seqLength = length($0); print name, seqLength}' "$sample" >> recombinantsIDplusLengths.txt
+done
+
+sed -i -e 's/>//g' recombinantsIDplusLengths.txt
+
+while read -r sample seqLength; do
+    grep -w "$sample" blastSummaryResults.tab | awk -v value="$seqLength" '{print $0, value}' >> updated
+done < recombinantsIDplusLengths.txt
+
+
 	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore" > blastSummaryResults.tab
 
 	cat blastResults* >> blastSummaryResults.tab
 	sed -i -e 's/~/_/g' blastSummaryResults.tab
 
-	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
-		awk '/^>/ {name = \$0 ; getline ; seqLength = length(\$0); print name, seqLength}' "\$sample" >> recombinantsIDplusLengths.txt
-	done
 
 
 	"""
