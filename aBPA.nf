@@ -1470,6 +1470,11 @@ process mapRecombinantsToGenes {
 	cat blastResults* >> blastSummaryResults.tab
 	sed -i -e 's/~/_/g' blastSummaryResults.tab
 
+	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
+		awk '/^>/ {name = \$0 ; getline ; seqLength = length(\$0); print name, seqLength}' "\$sample" >> recombinantsIDplusLengths.txt
+	done
+
+
 	"""
 }
 
