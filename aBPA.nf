@@ -1463,7 +1463,12 @@ process mapRecombinantsToGenes {
 	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
 		name=\$(basename "\${sample%_newfileWithExtractedHeadersAndSequences.fasta}")
 		blastn -query "\$sample" -db database/panGenomeReferenceDB -out blastResults"\$name" -outfmt 6
-	done		
+	done	
+
+	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore" > blastSummaryResults.tab
+
+	cat blastResults* >> blastSummaryResults.tab
+
 	"""
 }
 
