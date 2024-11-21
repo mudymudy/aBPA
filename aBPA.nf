@@ -1468,6 +1468,7 @@ process mapRecombinantsToGenes {
 	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore" > blastSummaryResults.tab
 
 	cat blastResults* >> blastSummaryResults.tab
+	sed -i -e 's/~/_/g' blastSummaryResults.tab
 
 	"""
 }
