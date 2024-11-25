@@ -1469,7 +1469,7 @@ process mapRecombinantsToGenes {
 	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore\\tseqLength" > blastSummaryResults.tab
 
 	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
-    		awk '/^>/ {name = $0 ; getline ; seqLength = length($0); print name, seqLength}' "$sample" >> recombinantsIDplusLengths.txt
+    		awk '/^>/ {name = \$0 ; getline ; seqLength = length(\$0); print name, seqLength}' "\$sample" >> recombinantsIDplusLengths.txt
 	done
 
 	sed -i -e 's/>//g' recombinantsIDplusLengths.txt
@@ -1478,7 +1478,7 @@ process mapRecombinantsToGenes {
 	sed -i -e 's/~/_/g' TMP1.tab
 
 	while read -r sample seqLength; do
-    		grep -w "$sample" TMP1.tab | awk -v value="$seqLength" '{print $0, value}' >> blastSummaryResults.tab
+    		grep -w "\$sample" TMP1.tab | awk -v value="\$seqLength" '{print \$0, value}' >> blastSummaryResults.tab
 	done < recombinantsIDplusLengths.txt
 
 	rm TMP1.tab
