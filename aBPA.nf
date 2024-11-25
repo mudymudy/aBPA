@@ -1465,25 +1465,23 @@ process mapRecombinantsToGenes {
 		blastn -query "\$sample" -db database/panGenomeReferenceDB -out blastResults"\$name" -outfmt 6
 	done	
 
- 
+
+	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore\\tseqLength" > blastSummaryResults.tab
+
 	for sample in *newfileWithExtractedHeadersAndSequences.fasta; do
     		awk '/^>/ {name = $0 ; getline ; seqLength = length($0); print name, seqLength}' "$sample" >> recombinantsIDplusLengths.txt
 	done
 
 	sed -i -e 's/>//g' recombinantsIDplusLengths.txt
+	
+	cat blastResults* >> TMP1.tab
+	sed -i -e 's/~/_/g' TMP1.tab
 
 	while read -r sample seqLength; do
-    		grep -w "$sample" blastSummaryResults.tab | awk -v value="$seqLength" '{print $0, value}' >> updated
+    		grep -w "$sample" TMP1.tab | awk -v value="$seqLength" '{print $0, value}' >> blastSummaryResults.tab
 	done < recombinantsIDplusLengths.txt
 
-
-	echo -e "qseqid\\tsseqid\\tpident\\tlength\\tmismatch\\tgapopen\\tqstart\\tqend\\tsstart\\tsend\\tevalue\\tbitscore" > blastSummaryResults.tab
-
-	cat blastResults* >> blastSummaryResults.tab
-	sed -i -e 's/~/_/g' blastSummaryResults.tab
-
-
-
+	rm TMP1.tab
 	"""
 }
 
