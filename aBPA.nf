@@ -1481,6 +1481,8 @@ process mapRecombinantsToGenes {
     		grep -w "\$sample" TMP1.tab | awk -v value="\$seqLength" '{print \$0, value}' >> blastSummaryResults.tab
 	done < recombinantsIDplusLengths.txt
 
+	sed -i -e 's/ /\\t/g' blastSummaryResults.tab
+
 	rm TMP1.tab
 	"""
 }
