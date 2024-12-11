@@ -141,3 +141,13 @@ Maybe add MapDamage to get more metrics after alignment.
 
 
 Make mapping quality threshold a variable in alignment process.
+
+
+
+
+Make documentation and improve --help message.
+
+
+
+
+Add a small test run with tiny dataset.
