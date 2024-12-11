@@ -251,6 +251,11 @@ process fastaDatabase {
 	
 	mv fasta cleanedFasta
 	mv gff cleanedGff
+	
+	for genome in cleanedFasta/*; do
+		name=\$(basename "\$genome")
+		awk '!/^>/ { gsub(/[^ACGTN]/, "N") }1' "\$genome" > tmp && mv tmp "\$genome"
+	done
 
 	cat .command.out >> fastaDatabase.log
 	"""
