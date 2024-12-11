@@ -151,3 +151,13 @@ Make documentation and improve --help message.
 
 
 Add a small test run with tiny dataset.
+
+
+
+
+Fix python heatmap labels related to number of samples. Make labels a bit bigger.
+
+
+
+
+Improve the diagram by making letters bigger
