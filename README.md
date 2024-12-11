@@ -97,3 +97,40 @@ normalizedGenomeScaled = (geneMeanDepth / globalMean) * (geneLength[gene] / refC
 
 
 
+
+# 4/ TODO
+
+
+
+Add paired end reads options.
+
+
+
+Add UnifiedGenotyper option for --genotype and classify the current as --genotype bcftools. Improve the way bcftools is behaving.
+
+
+
+Add the option to run parsnp instead of pMauve with --aligner
+
+
+
+Make alignment parameters with bwa aln variables that can be tuned.
+
+
+
+Add a antimicrobial resistance pipe and link it with genes.
+
+
+
+Add pre-procesing step such as alignment against human reference , adapter removal and deduplication.
+
+
+
+Add heteroplasmy process before getting genotypes and update heterozygosis values into the updatedNormalized table.
+
+
+
+Add an option to filter reads based on length.
+
+
+
