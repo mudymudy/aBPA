@@ -27,7 +27,7 @@ downloadGenomes = Channel.of(params.genomes)
 params.clustering = 0.95
 cdHitCluster = Channel.of(params.clustering)
 
-params.core = 0.01
+params.core = 0.95
 pangenomeThreshold = Channel.of(params.core)
 
 params.clean = "strict"
@@ -41,6 +41,24 @@ outTax = Channel.of(params.outgroup)
 
 params.trustedGenomes = false
 def trustedDataChannel = params.trustedGenomes ? Channel.fromPath(params.trustedGenomes) : Channel.empty()
+
+params.missing = 0.01
+missingProb = Channel.of(params.missing)
+
+params.gaps = 2
+gapFraction = Channel.of(params.gaps)
+
+params.seed = 16500
+seedAlignment = Channel.of(params.seed)
+
+params.mapq = 25
+mappingQuality = Channel.of(params.mapq)
+
+params.minlength = 34
+minReadLength = Channel.of(params.minlegth)
+
+params.maxlength = 300
+maxReadLength = Channel.of(params.maxlength)
 
 params.help = false
 
