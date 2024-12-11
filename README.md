@@ -160,4 +160,15 @@ Fix python heatmap labels related to number of samples. Make labels a bit bigger
 
 
 
-Improve the diagram by making letters bigger
+Improve the diagram by making letters bigger.
+
+
+
+
+Evaluate the option to work with pangenome graph as well.
+
+
+
+
+
+
