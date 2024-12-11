@@ -134,3 +134,10 @@ Add an option to filter reads based on length.
 
 
 
+
+Maybe add MapDamage to get more metrics after alignment.
+
+
+
+
+Make mapping quality threshold a variable in alignment process.
