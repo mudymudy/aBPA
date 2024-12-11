@@ -6,8 +6,8 @@ reads = Channel.of(params.data)
 params.output = ""
 resultsDir = Channel.of(params.output)
 
-params.gcompleteness = 50
-geneCompleteness = Channel.of(params.gcompleteness)
+params.completeness = 50
+geneCompleteness = Channel.of(params.completeness)
 
 params.coverageDown = 0.5
 normalizedCoverageDown = Channel.of(params.coverageDown)
@@ -62,7 +62,7 @@ def print_help() {
 	
 	println "\n\033[1;33mOPTIONS\033[0m"
 	println "  --threads <INT>		Set number of threads (default: 10)"
-	println "  --gcompleteness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
+	println "  --completeness <INT/FLOAT>	Set gene completeness/breadth of coverage threshold (default: 50)"
 	println "  --coverage <INT/FLOAT>	Set mean depth of coverage threshold (default: 0.5)"
 	println "  --genomes <INT>		Set number of genomes to download (default: 100)"
 	println "  --clustering <INT/FLOAT>	Set clustering threshold (default 0.95)"
@@ -88,7 +88,7 @@ def print_help() {
 	println "\n\033[1;33m--threads <INT>\033[0m"
 	println "Set amount of threads to be used globally."
 
-	println "\n\033[1;33m--gcompleteness <INT>\033[0m"
+	println "\n\033[1;33m--completeness <INT>\033[0m"
 	println "Set gene breadth of coverage threshold as percentage. Genes that have a value less than <INT> will be considered absent."
 
 	println "\n\033[1;33m--coverage <INT/FLOAT>\033[0m"
@@ -550,7 +550,7 @@ process plotCoveragevsCompleteness {
 	
 	input:
 	path geneNormalizedUpdated, stageAs: 'gNS/'
-	val gcompleteness
+	val completeness
 	val coverage
 
 	output:
@@ -558,7 +558,7 @@ process plotCoveragevsCompleteness {
 	
 	script:
 	"""
-	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $gcompleteness $coverage
+	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdated.tab $completeness $coverage
 	"""
 }
 
@@ -571,7 +571,7 @@ process plotCoveragevsCompletenessOnFiltered {
 	
 	input:
 	path geneNormalizedUpdatedFiltered, stageAs: 'gNS/*'
-	val gcompleteness
+	val completeness
 	val coverage
 
 	output:
@@ -579,7 +579,7 @@ process plotCoveragevsCompletenessOnFiltered {
 	
 	script:
 	"""
-	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdatedFiltered.tab $gcompleteness $coverage
+	plot_cvg_vs_completeness.py gNS/geneNormalizedUpdatedFiltered.tab $completeness $coverage
 	mv plotCoverage_vs_Completeness.png ./plotCoverageVsCompletenessFiltered.png
 	"""
 }
