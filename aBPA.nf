@@ -51,7 +51,7 @@ gapFraction = Channel.of(params.gaps)
 params.seed = 16500
 seedAlignment = Channel.of(params.seed)
 
-params.mapq = 25
+params.mapq = 30
 mappingQuality = Channel.of(params.mapq)
 
 params.minlength = 34
