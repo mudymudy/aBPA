@@ -388,7 +388,7 @@ process alignment {
     		rg_pu="unit1"           # Replace with your platform unit
 
     		bwa aln -l 16500 -n 0.01 -o 2 -t $threadsGlobal $panRef "\$sample" > "\${name%.fastq*}.sai"
-    		bwa samse -r "@RG\tID:\$rg_id\tSM:\$rg_sm\tPL:\$rg_pl\tLB:\$rg_lb\tPU:\$rg_pu" \
+    		bwa samse -r "@RG\\\tID:\$rg_id\\\tSM:\$rg_sm\\\tPL:\$rg_pl\\\tLB:\$rg_lb\\\tPU:\$rg_pu" \
 		$panRef "\${name%.fastq*}.sai" "\$sample" > "\${name%.fastq*}.sam"
     
     		samtools view -bS "\${name%.fastq*}.sam" > "\${name%.fastq*}.bam"
