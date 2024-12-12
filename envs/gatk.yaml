@@ -1,1 +1,7 @@
-
+name: gatk
+channels:
+  - bioconda
+dependencies:
+  - gatk
+  - picard
+  - bcftools
