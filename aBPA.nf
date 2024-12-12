@@ -1853,6 +1853,12 @@ workflow {
 	}
 
 
+	fastaDatabase(gffFiles, fastaFiles)
+	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
+	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
+	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
+	formattingPangenome(makePangenome.out.panSequence)
+
 	if (params.genotyper == "gatk") {
 		gatkConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 		extractedSequencesFasta = gatkConsensus.out.gatkConsensusSequences
@@ -1866,11 +1872,6 @@ workflow {
 		error "Invalid option for --genotyper. Please choose 'gatk' or 'bcftools'."
 	}
 
-	fastaDatabase(gffFiles, fastaFiles)
-	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
-	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
-	makePangenome(prokkaMakeAnnotations.out.prokkaGFF, pangenomeMode, pangenomeThreshold, threadsGlobal)
-	formattingPangenome(makePangenome.out.panSequence)
 	blastMe(formattingPangenome.out.panGenomeReference)
         outgroupEntrez(outTax)
         makeReads(outgroupEntrez.out.outgroupFasta)
