@@ -744,7 +744,7 @@ process buildHeatmap {
 }
 
 
-process makeConsensus {
+process bcftoolsConsensus {
 	conda "${projectDir}/envs/consensus.yaml"
 
 	input:
@@ -1820,6 +1820,19 @@ workflow {
 
 	}
 
+
+	if (params.genotyper == "gatk") {
+		gatk(gffFiles, fastaFiles)
+		= gatk.out.variantFiles
+
+	} else if (params.genotyper == "bcftools") {
+		bcftools(gffFiles, fastaFiles)
+		extractedSequencesFasta = bcftools.out.consensusSequences
+
+	} else {
+		error "Invalid option for --genotyper. Please choose 'gatk' or 'bcftools'."
+	}
+
 	fastaDatabase(gffFiles, fastaFiles)
 	clustering(fastaDatabase.out.theFastaDatabase, cdHitCluster, threadsGlobal)
 	prokkaMakeAnnotations(clustering.out.clusteredDatabase, threadsGlobal, fastaDatabase.out.validGff, fastaDatabase.out.validFasta)
@@ -1838,9 +1851,9 @@ workflow {
         applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp, geneCompleteness)
 	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, applyCoverageBounds.out.geneNormalizedUpdatedFiltered)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
-	makeConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
+	bcftoolsConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
-	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, makeConsensus.out.extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta, buildHeatmap.out.blackListed)
+	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta, buildHeatmap.out.blackListed)
 	pMauve(fastaDatabase.out.validFasta)
 	makeMSA(filterGeneAlignments.out.genesAlnSeq, buildHeatmap.out.maskedMatrixGenesNoUbiquitous, buildHeatmap.out.maskedMatrixGenesOnlyAncient, buildHeatmap.out.maskedMatrixGenesUbiquitous, buildHeatmap.out.genesAbovePercentSeries, filterGeneAlignments.out.sampleNames)
 	treeThreshold(makeMSA.out.genesAbovePercentMSA)
