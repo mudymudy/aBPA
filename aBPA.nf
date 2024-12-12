@@ -389,12 +389,12 @@ process alignment {
     		name=\$(basename "\$sample")
     		softClip=\$(grep "\$name" $configFile | awk '{print \$2}')
     
-    		# Define read group information
-    		rg_id="\${name%.fastq*}"  # Use sample name as ID
-    		rg_sm="\${name%.fastq*}" # Use sample name as sample ID
-    		rg_pl="illumina"        # Replace with your platform
-    		rg_lb="lib1"            # Replace with your library name
-    		rg_pu="unit1"           # Replace with your platform unit
+    		# Making read groups
+    		rg_id="\${name%.fastq*}"  # sample name as id
+    		rg_sm="\${name%.fastq*}" # sample name again
+    		rg_pl="illumina"        # I dont think this is very important for this pipeline so its going to be just illumina because why not
+    		rg_lb="lib1"            # group id
+    		rg_pu="unit1"           # not sure what Ill put here
 
     		bwa aln -l $seedAlignment -n $missingProb -o $gapFraction -t $threadsGlobal $panRef "\$sample" > "\${name%.fastq*}.sai"
     		bwa samse -r "@RG\\tID:\$rg_id\\tSM:\$rg_sm\\tPL:\$rg_pl\\tLB:\$rg_lb\\tPU:\$rg_pu" \
