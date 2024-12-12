@@ -752,8 +752,7 @@ process bcftoolsConsensus {
 	path bamFiles, stageAs: 'BAM/*'
 
 	output:
-	path 'extractedSequences*.fq', emit: extractedSequencesReads 
-	path 'extractedSequences*.fasta', emit: extractedSequencesFasta
+	path 'extractedSequences*.fasta', emit: consensusSequences
 
 	script:
 	"""
@@ -764,6 +763,39 @@ process bcftoolsConsensus {
 	done
 	"""
 }
+
+
+process gatkConsensus {
+	conda "${projectDir}/envs/gatk.yaml"
+
+	input:
+	path panGenomeRef, stageAs: 'panGenomeRef.fasta'
+	path bamFiles, stageAs: 'BAM/*'
+	
+
+	output:
+	path 'extractedSequences*.fasta', emit: gatkConsensusSequences
+	path '*Genotyped.vcf', emit: gatkGenotypes
+
+	script:
+	"""
+	picard CreateSequenceDictionary -R panGenomeRef.fasta
+	
+	for b in BAM/*; do
+		basename=\$(basename "\$b")
+		gatk3 -T UnifiedGenotyper --min_base_quality_score 30 \
+			--genotype_likelihoods_model BOTH --annotateNDA \
+			--genotyping_mode DISCOVERY --output_mode EMIT_ALL_SITES \
+			-I "\$b" -R panGenomeRef.fasta \
+			-o "\${basename%.bam}"Genotyped.vcf \
+	done
+	"""
+}
+
+
+
+
+
 
 
 /*
@@ -1822,12 +1854,13 @@ workflow {
 
 
 	if (params.genotyper == "gatk") {
-		gatk(gffFiles, fastaFiles)
-		= gatk.out.variantFiles
+		gatkConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
+		extractedSequencesFasta = gatkConsensus.out.gatkConsensusSequences
+		vcfFile = gatkConsensus.out.gatkGenotypes
 
 	} else if (params.genotyper == "bcftools") {
-		bcftools(gffFiles, fastaFiles)
-		extractedSequencesFasta = bcftools.out.consensusSequences
+		bcftoolsConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
+		extractedSequencesFasta = bcftoolsConsensus.out.consensusSequences
 
 	} else {
 		error "Invalid option for --genotyper. Please choose 'gatk' or 'bcftools'."
@@ -1851,7 +1884,6 @@ workflow {
         applyCoverageBounds(updateNormalization.out.geneNormalizedUpdated, normalizedCoverageDown, normalizedCoverageUp, geneCompleteness)
 	makeMatrix(makePangenome.out.initialMatrix , normalizationFunction.out.globalMeanCoverage, applyCoverageBounds.out.geneNormalizedUpdatedFiltered)
 	buildHeatmap(makeMatrix.out.finalCsv, makeMatrix.out.INDEX ,makeMatrix.out.matrix, makeMatrix.out.sampleNames)
-	bcftoolsConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles)
 	plotCoveragevsCompletenessOnFiltered(applyCoverageBounds.out.geneNormalizedUpdatedFiltered, geneCompleteness,normalizedCoverageDown)
 	filterGeneAlignments(makePangenome.out.alignedGenesSeqs, extractedSequencesFasta, fastaDatabase.out.validFasta, downloadGenomes, makeOutgroupConsensus.out.extractedSequencesOutgroupFasta, buildHeatmap.out.blackListed)
 	pMauve(fastaDatabase.out.validFasta)
