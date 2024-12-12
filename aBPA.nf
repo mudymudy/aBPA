@@ -60,6 +60,10 @@ minReadLength = Channel.of(params.minlegth)
 params.maxlength = 300
 maxReadLength = Channel.of(params.maxlength)
 
+params.genotyper = "gatk"
+genotypeMethod = Channel.of(params.genotyper)
+
+
 params.help = false
 
 
@@ -400,7 +404,7 @@ process alignment {
     		samtools index "\${name%.fastq*}_sorted_mappedreads.bam"
     		bam trimBam "\${name%.fastq*}_sorted_mappedreads.bam" "\${name%.fastq*}_softclipped.bam" -L "\$softClip" -R "\$softClip" --clip
     		samtools view -q 30 -o "\${name%.fastq*}_qc.bam" "\${name%.fastq*}_softclipped.bam"
-    		samtools view -e 'length(seq)>34' -O BAM -o "\${name%.fastq*}_lg.bam" "\${name%.fastq*}_qc.bam"
+    		samtools view -e 'length(seq)>34 && length(seq)<300' -O BAM -o "\${name%.fastq*}_lg.bam" "\${name%.fastq*}_qc.bam"
     		samtools sort -o "\${name%.fastq*}_DMC_P.bam" -O bam -@ $threadsGlobal "\${name%.fastq*}_lg.bam"
     		samtools coverage "\${name%.fastq*}_DMC_P.bam" > "\${name}_genomicsMetrics.txt"
     		samtools fastq -@ $threadsGlobal "\${name%.fastq*}_DMC_P.bam" > "\${name%.fastq*}_final.fastq"
