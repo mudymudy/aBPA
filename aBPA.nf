@@ -787,8 +787,8 @@ process gatkConsensus {
 	
 
 	output:
-	path 'extractedSequences*.fasta', emit: gatkConsensusSequences
-	path '*Genotyped.vcf', emit: gatkGenotypes
+	path '*GenotypedNormalizedConsensusSeq.fasta', emit: gatkConsensusSequences
+	path '*GenotypedNormalized.vcf', emit: gatkGenotypes
 
 	script:
 	"""
@@ -801,7 +801,13 @@ process gatkConsensus {
 			--genotype_likelihoods_model BOTH --annotateNDA \
 			--genotyping_mode DISCOVERY --output_mode EMIT_ALL_SITES \
 			-I "\$b" -R panGenomeRef.fasta \
-			-o "\${basename%.bam}"Genotyped.vcf \
+			-o "\${basename%.bam}"Genotyped.vcf 
+
+		bcftools norm -f panGenomeRef.fasta "\${basename%.bam}"Genotyped.vcf > "\${basename%.bam}"GenotypedNormalized.vcf
+		bgzip -i "\${basename%.bam}"GenotypedNormalized.vcf
+		bcftools index "\${basename%.bam}"GenotypedNormalized.vcf.gz
+		bcftools consensus -a N -M N -f panGenomeRef.fasta "\${basename%.bam}"GenotypedNormalized.vcf.gz -o "\${basename%.bam}"GenotypedNormalizedConsensus.fasta
+		seqtk seq "\${basename%.bam}"GenotypedNormalizedConsensus.fasta > "\${basename%.bam}"GenotypedNormalizedConsensusSeq.fasta
 	done
 	"""
 }
