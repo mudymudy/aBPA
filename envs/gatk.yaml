@@ -1,7 +1,10 @@
 name: gatk
 channels:
   - bioconda
+  - conda-forge
+  - defaults
 dependencies:
   - gatk
   - picard
   - bcftools
+  - samtools
