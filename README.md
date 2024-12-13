@@ -106,7 +106,7 @@ Add paired end reads options.
 
 
 
-Add UnifiedGenotyper option for --genotype and classify the current as --genotype bcftools. Improve the way bcftools is behaving.
+Add UnifiedGenotyper option for --genotype and classify the current as --genotype bcftools. Improve the way bcftools is behaving. DONE, BUT STILL NEED TO MAKE BCFTOOLS A BIT BETTER
 
 
 
@@ -114,7 +114,7 @@ Add the option to run parsnp instead of pMauve with --aligner
 
 
 
-Make alignment parameters with bwa aln variables that can be tuned.
+Make alignment parameters with bwa aln variables that can be tuned. DONE
 
 
 
@@ -126,11 +126,11 @@ Add pre-procesing step such as alignment against human reference , adapter remov
 
 
 
-Add heteroplasmy process before getting genotypes and update heterozygosis values into the updatedNormalized table.
+Add heteroplasmy process before getting genotypes and update heterozygosis values into the updatedNormalized table. WORKING ON IT
 
 
 
-Add an option to filter reads based on length.
+Add an option to filter reads based on length. DONE
 
 
 
@@ -140,7 +140,7 @@ Maybe add MapDamage to get more metrics after alignment.
 
 
 
-Make mapping quality threshold a variable in alignment process.
+Make mapping quality threshold a variable in alignment process. DONE
 
 
 
