@@ -1,0 +1,9 @@
+name: formattingPangenome
+channels:  
+- bioconda  
+- anaconda
+- conda-forge  
+- defaults
+dependencies:  
+- seqtk
+- picard
