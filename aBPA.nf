@@ -792,7 +792,7 @@ process gatkConsensus {
 	path panGenomeReferenceIndex, stageAs: 'panGenomeRef.fasta.fai'
 	output:
 	path '*GenotypedNormalizedConsensusSeq.fasta', emit: gatkConsensusSequences
-	path '*GenotypedNormalized.vcf', emit: gatkGenotypes
+	path '*GenotypedNormalized.vcf.gz', emit: gatkGenotypes
 
 	script:
 	"""
