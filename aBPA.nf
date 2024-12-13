@@ -794,6 +794,8 @@ process gatkConsensus {
 
 	script:
 	"""
+	samtools faidx panGenomeRef.fasta
+
 	for b in BAM/*; do
 		basename=\$(basename "\$b")
 		gatk3 -T UnifiedGenotyper --min_base_quality_score 30 \
