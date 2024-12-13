@@ -55,7 +55,7 @@ params.mapq = 30
 mappingQuality = Channel.of(params.mapq)
 
 params.minlength = 34
-minReadLength = Channel.of(params.minlegth)
+minReadLength = Channel.of(params.minlength)
 
 params.maxlength = 300
 maxReadLength = Channel.of(params.maxlength)
