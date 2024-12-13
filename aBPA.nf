@@ -465,13 +465,21 @@ process alignmentSummary {
                 fi
         done
 
+	#Getting some stats AND Re group the data so genotyping is simpler
         for i in postPangenomeAlignment*bam; do
                 samplename=\$(basename ./bam/"\${i%.bam}")
                 samtools index "\$i"
                 samtools depth -a "\$i" > "\${samplename}_rawCoverage.txt"
                 samtools idxstats "\$i" | awk '{sum += \$2} END {print sum}' > "\${samplename}_refLength.txt"
                 samtools coverage "\$i" | awk -v samplename="\$samplename" 'NR>1 {print samplename, \$1, \$6}' | sed -e 's/~/_/g' | sed -e 's/ /\t/g' | sort -k 1 -t \$'\t' >> completenessSummary.tab
-        done
+		mv "\$i" ./"\${i%.bam}_TMP.bam"
+		mv "\$i".bai ./"\${i%.bam.bai}_TMP.bam.bai"
+		picard AddOrReplaceReadGroups I="\${i%.bam}_TMP.bam" O="\${samplename}.bam" RGLB="\${samplename}" RGSM="\${samplename}" RGPU=Illumina RGPL=ILLUMINA RGID="\${samplename}" RGDS="\${samplename}"
+		samtools index "\${samplename}.bam"
+	done
+
+	rm *TMP.bam*
+
 	cat .command.out >> alignmentSummary.log
 	"""
 }
@@ -786,6 +794,7 @@ process gatkConsensus {
 	"""
 	picard CreateSequenceDictionary -R panGenomeRef.fasta
 	
+
 	for b in BAM/*; do
 		basename=\$(basename "\$b")
 		gatk3 -T UnifiedGenotyper --min_base_quality_score 30 \
