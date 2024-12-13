@@ -356,11 +356,13 @@ process  formattingPangenome {
 	output:
 	path 'panGenomeReference.fasta', emit: panGenomeReference
 	path 'panGenomeReference.dict', emit: panGenomeReferenceDictionary
+	path 'panGenomeReference.fasta.fai', emit: panGenomeReferenceIndex
 
 	script:
 	"""
 	seqtk seq $panGenomeReference > panGenomeReference.fasta
 	picard CreateSequenceDictionary -R panGenomeReference.fasta
+	samtools faidx panGenomeReference.fasta
 	"""
 }
 
@@ -787,14 +789,13 @@ process gatkConsensus {
 	path panGenomeRef, stageAs: 'panGenomeRef.fasta'
 	path bamFiles, stageAs: 'BAM/*'
 	path panGenomeRefDictionary, stageAs: 'panGenomeRef.dict'
-
+	path panGenomeReferenceIndex, stageAs: 'panGenomeRef.fasta.fai'
 	output:
 	path '*GenotypedNormalizedConsensusSeq.fasta', emit: gatkConsensusSequences
 	path '*GenotypedNormalized.vcf', emit: gatkGenotypes
 
 	script:
 	"""
-	samtools faidx panGenomeRef.fasta
 
 	for b in BAM/*; do
 		basename=\$(basename "\$b")
@@ -1891,7 +1892,7 @@ workflow {
 
 
 	if (params.genotyper == "gatk") {
-		gatkConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles, formattingPangenome.out.panGenomeReferenceDictionary)
+		gatkConsensus(formattingPangenome.out.panGenomeReference, alignmentSummary.out.postAlignmentFiles, formattingPangenome.out.panGenomeReferenceDictionary, formattingPangenome.out.panGenomeReferenceIndex)
 		extractedSequencesFasta = gatkConsensus.out.gatkConsensusSequences
 		vcfFile = gatkConsensus.out.gatkGenotypes
 
