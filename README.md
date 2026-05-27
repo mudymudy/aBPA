@@ -1,7 +1,7 @@
 [![DOI](https://zenodo.org/badge/855715084.svg)](https://doi.org/10.5281/zenodo.19684212)
 
 ### Panchronos workflow
-`panchronos` is a `Nextflow` pipeline designed for microbial phylogenetic reconstruction based on pangenome alignment. It provides an end-to-end workflow, with particular emphasis on handling low-quality and fragmented data, as commonly encountered in ancient DNA studies.
+`panchronos` is a pipeline designed for microbial phylogenetic reconstruction based on pangenome alignment. It provides an end-to-end workflow, with particular emphasis on handling low-quality and fragmented data, as commonly encountered in ancient DNA studies.
 
 
 ## Table of Contents
@@ -21,6 +21,8 @@
 
 # 1/ Installation
 First you need to have `Nextflow` and `Conda/Mamba` installed. To install `Nextflow`, please follow the instructions: https://www.nextflow.io/docs/latest/install.html. For `Conda`, if you don't already have any version installed, we recommend using Miniforge: https://github.com/conda-forge/miniforge
+
+NOTE: `panchronos` has been tested with nextflow versions >= 24 and < 26. If you have nextflow version >=26, you may need to set `NXF_SYNTAX_PARSER=v1` before running the pipeline.
 
 To verify that Nextflow is properly installed and available in your environment, please run: 
 ```
