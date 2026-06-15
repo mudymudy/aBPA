@@ -86,9 +86,8 @@ process UPDATE_MATRIX {
                         }
                         print g gene_row
                 }
-        }' panchronos_normalisation_summary_filtered.tab > gene_completeness_matrix
+        }' panchronos_normalisation_summary_filtered.tab > gene_completeness_matrix.tab
 
-        cat gene_completeness_matrix_header gene_completeness_matrix > gene_completeness_matrix.tab
         cp gene_completeness_matrix.tab ${params.output}/MATRIX/
         """
 }
