@@ -89,7 +89,7 @@ process HEATMAP {
         if [[ -s blackListedQualityChecked.txt ]]; then
                 while read -r removeMe; do
                         mv "\${removeMe}_last_column.txt" "\${removeMe}LowQualitySample"
-                        grep -v "\${removeMe}" names/sample_names > names/sample_names.tmp
+                        grep -w -v "\${removeMe}" names/sample_names > names/sample_names.tmp
                         mv names/sample_names.tmp names/sample_names
                 done < blackListedQualityChecked.txt
         else
