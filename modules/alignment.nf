@@ -38,7 +38,7 @@ process ALIGNMENT {
                 if [ -f "./test.fastq.gz" ]; then
                         softClip=5
                 else
-                        softClip=\$(grep "\$name" $configFile | awk '{print \$2}')
+                       softClip=\$(awk -v file_name="\$filename" '\$1 == file_name { print \$2 }' $configFile)
                 fi
 
                 status=\$(awk -v f="\$filename" '\$1==f {print \$4}' $configFile)
