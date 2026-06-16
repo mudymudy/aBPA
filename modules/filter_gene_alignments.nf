@@ -106,8 +106,7 @@ process FILTER_GENE_ALIGNMENTS {
 			echo "Checking file existence just before mv:"
 			ls -l ./input_modern/"\${removeMe}.fasta"
 
-                		status=\$(grep -w "\$removeMe" $config | awk '{print \$4}')
-
+                		status=\$(awk -v sample_to_remove="\$removeMe" '\$3 == sample_to_remove { print \$4 }' config_test.tab)
                 		if [[ "\$status" == "A" ]]; then
 				
 					echo "Sample to move: \$removeMe"
@@ -119,10 +118,8 @@ process FILTER_GENE_ALIGNMENTS {
 					echo "Sample to move: \$removeMe"
 					ls -l ./input_modern/"\${removeMe}.fasta"
 	                        	mv ./input_modern/"\${removeMe}.fasta" ./blacklisted/
-	                        	echo "\${removeMe} has been removed from analysis due to low quality."
-
+	                        	echo "\${removeMe} has been removed from analysis due to low quality.
                 	        fi
-
                 done < blackListed.txt
         else
                 echo -e "Every sample passed quality checks."
@@ -264,7 +261,7 @@ process FILTER_GENE_ALIGNMENTS {
 
                 sampleName=\$(basename "\${sample%.fasta}")
                 if [[ "\$synth" -eq 0 ]]; then
-                        echo "\${sampleName}" >> userSampleNames.txt
+                        echo "\${sampleName}" >> "\${sampleName}"_userSampleNames_tmp.txt
                 fi
 
                 sed -i -e 's/~/_/g' "\${sample}"
@@ -286,8 +283,13 @@ process FILTER_GENE_ALIGNMENTS {
                 find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
         fi
 
+        #concatenating userSampleNames if synth eq 0
+        if compgen -G "*_userSampleNames_tmp.txt" > /dev/null; then
+                cat *_userSampleNames_tmp.txt >> userSampleNames.txt
+                rm *_userSampleNames_tmp.txt
+        fi
 
-	#before making the files with filenames I need to exclude blacklisted samples
+		#before making the files with filenames I need to exclude blacklisted samples
         grep -vxFf blackListed.txt userSampleNames.txt | sed '/^\$/d' > tmp1 && mv tmp1 userSampleNames.txt      
         grep -vxFf blackListed.txt modern_group_as_input.txt | sed '/^\$/d' > tmp2 && mv tmp2 modern_group_as_input.txt      
 
