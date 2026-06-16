@@ -29,7 +29,7 @@ process ALIGNMENT_SUMMARY {
 
         while read -r groupID; do
                 groupName=\$(echo "\$groupID")
-                grep -w "\$groupID" $configFile | awk '{print \$1}' > "\$groupName"ID
+                awk -v group_id="\$groupID" '\$3 == group_id { print \$1 }' $configFile > "\$groupName"ID
         done < groups.txt
 
         merging() {
