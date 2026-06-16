@@ -42,7 +42,7 @@ process ANNOTATE {
 		mv "\${name%.fna}_prokka"/*gff annotated_files/"\${name}.gff"
 	}
 	export -f annotate
-	find ./ -name "*.fasta" | parallel -j $parallel annotate {} "\$species
+	find ./ -name "*.fasta" | parallel -j $parallel annotate {} "\$species"
 
 
 	cat .command.out >> ANNOTATE.log
