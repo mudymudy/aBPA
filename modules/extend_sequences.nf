@@ -60,36 +60,24 @@ process EXTEND_SEQUENCES {
 	
 	
 	while read -r seqID gene; do
-	
-		grep -w "\$seqID" $gene_data | awk -v gene_name=\$gene -F',' '{print \$1, \$3, \$4, gene_name}' >> updated_seq_ids_per_node
-		
+		awk -F',' -v cluster_id="\$seqID" -v gene_name="\$gene" '\$3 == cluster_id { print \$1, \$3, \$4, gene_name }' $gene_data >> updated_seq_ids_per_node
 	done < seq_ids_per_node
 
 
 	#Now we need to do some cleaning
-
 	awk '{
-	
 		centroids[\$2] = centroids[\$2]"\t"\$4   #\$2 and \$3 should be the same for different lines if there are more copies of a centroid
 		centroid_count[\$2]++
-
 	}
-
-	END { for (id in centroids) {
-
+	END { 
+		for (id in centroids) {
 			if ( centroid_count[id] > 1) {
-
 				print id, centroids[id], centroid_count[id]
 			}
-	}
-
+		}
 	}' updated_seq_ids_per_node > redundant_genes.txt
 
-
-
 	awk '{print \$1}' redundant_genes.txt > exclude_centroids.txt
-
-
 
 	awk 'FNR==NR { ex[\$1]=1; next }
 	{
