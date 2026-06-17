@@ -118,7 +118,7 @@ process FILTER_GENE_ALIGNMENTS {
 					echo "Sample to move: \$removeMe"
 					ls -l ./input_modern/"\${removeMe}.fasta"
 	                        	mv ./input_modern/"\${removeMe}.fasta" ./blacklisted/
-	                        	echo "\${removeMe} has been removed from analysis due to low quality.
+	                        	echo "\${removeMe}" has been removed from analysis due to low quality.
                 	        fi
                 done < blackListed.txt
         else
