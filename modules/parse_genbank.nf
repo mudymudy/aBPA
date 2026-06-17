@@ -30,8 +30,8 @@ process PARSE_GENBANK {
 		done < blackListed.txt
 	else
 		echo -e "Every file passed the test. Moving on."
-		cp *.gb cleaned/
-		cp *.fasta cleaned/
+		mv *.gb cleaned/
+		mv *.fasta cleaned/
 	fi
 	"""
 }
