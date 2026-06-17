@@ -25,6 +25,9 @@ process UPDATE_MATRIX {
         """
         #!/bin/bash
 
+        
+        mkdir -p ${params.output}/MATRIX
+
         awk 'NR==1{print \$0}' $pangenomeRtab > matrix.tab
 
         #now get only the genes from gene_list
