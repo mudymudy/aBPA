@@ -74,11 +74,13 @@ process FILTER_GENE_ALIGNMENTS {
         new_name="\${new_name#extractedSequences}"
         new_name="\${new_name#mergedGroup}"
 
+                echo -e "Renaming \$file into \$new_name"
+
                 mv "\$file" user_genes/"\$new_name"
         }
         export -f renaming
-        find ./user_genes -name "*fasta" | parallel -j $parallel renaming
 
+        find ./user_genes -name "*fasta" | parallel -j $parallel renaming
 
         #if user input data contains modern
         awk '\$4 == "M" { print \$3 }' $config > modern_group_as_input.txt
@@ -89,11 +91,26 @@ process FILTER_GENE_ALIGNMENTS {
                 input_as_modern_activator=1
 
                 while read -r sample;do
-			ls -l ./user_genes/"\${sample}.fasta"
-
+                        echo -e "Modern input data \$sample moved from user_genes/ to input_modern/"
                         mv ./user_genes/"\${sample}.fasta" input_modern/
                 done < modern_group_as_input.txt
         fi
+
+        export input_as_modern_activator
+
+        #if no ancient data was used in the analysis, then
+        shopt -s nullglob
+        only_modern=0
+        ancient_samples=\$(awk '\$4 == "A" { print \$3 }' \$config)
+        if [[ -z "\$ancient_samples" ]]; then
+                echo -e "No ancient data found. Execution for only modern data"
+                only_modern=1
+        else
+                only_modern=0
+        fi
+
+        export only_modern
+        echo -e "VALUE for only_modern: \$only_modern"
 
 
         mkdir -p blacklisted
@@ -103,23 +120,19 @@ process FILTER_GENE_ALIGNMENTS {
 
                 while read -r removeMe; do
 
-			echo "Checking file existence just before mv:"
-			ls -l ./input_modern/"\${removeMe}.fasta"
+                                status=\$(awk -v sample_to_remove="\$removeMe" '\$3 == sample_to_remove { print \$4 }' config_test.tab)
+                                if [[ "\$status" == "A" ]]; then
 
-                		status=\$(awk -v sample_to_remove="\$removeMe" '\$3 == sample_to_remove { print \$4 }' config_test.tab)
-                		if [[ "\$status" == "A" ]]; then
-				
-					echo "Sample to move: \$removeMe"
-                        		mv ./user_genes/*"\${removeMe}.fasta" ./blacklisted/
-	                        	echo "\${removeMe} has been removed from analysis due to low quality."
+                                        echo "Sample to move: \$removeMe"
+                                        mv ./user_genes/*"\${removeMe}.fasta" ./blacklisted/
+                                        echo "\${removeMe} has been removed from analysis due to low quality."
 
-         	               elif [[ "\$status" == "M" ]]; then
-				
-					echo "Sample to move: \$removeMe"
-					ls -l ./input_modern/"\${removeMe}.fasta"
-	                        	mv ./input_modern/"\${removeMe}.fasta" ./blacklisted/
-	                        	echo "\${removeMe}" has been removed from analysis due to low quality.
-                	        fi
+                               elif [[ "\$status" == "M" ]]; then
+
+                                        echo "Sample to move: \$removeMe"
+                                        mv ./input_modern/"\${removeMe}.fasta" ./blacklisted/
+                                        echo "\${removeMe} has been removed from analysis due to low quality."
+                                fi
                 done < blackListed.txt
         else
                 echo -e "Every sample passed quality checks."
@@ -132,9 +145,11 @@ process FILTER_GENE_ALIGNMENTS {
                 export synthetics_activator
                 mkdir -p ./synthetic_reads/
                 awk 'NR>1 {print \$1}' ./synthetic/panchronos_synthetic_reads_global_statistics.tab > synthetic_samples.txt
+
                 while read -r sample;do
                         if [[ -f "user_genes/\$sample".fasta ]]; then
                                 mv user_genes/"\$sample".fasta ./synthetic_reads/
+                                echo -e "Synthetic sample "\${sample}" moved from user_genes/ to synthetic_reads/"
                         else
                                 echo -e "File \$sample was not found in user_genes"
                         fi
@@ -165,6 +180,7 @@ process FILTER_GENE_ALIGNMENTS {
         name="\${name%.fasta}"
         cleaner_name="\${name#extractedSequences}"
 
+        echo -e "DEBUG: name: \$name , cleaner name: \$cleaner_name , user gene seqs: \$user_gene_seqs"
 
                 if [[ "\$synth" -eq 1 ]]; then
                         mask_char="-"
@@ -172,46 +188,68 @@ process FILTER_GENE_ALIGNMENTS {
                         mask_char="N"
                 fi
 
-                awk -v mask="\$mask_char" 'FNR==NR{ #list of genes to mask
-                        genes[\$1] = 1
-                        next
-                }
+                if [[ -s "./genes_to_mask/\${cleaner_name}_presence_absence_genes.index" ]]; then
+                        awk -v mask="\$mask_char" 'FNR==NR{ #list of genes to mask
+                                genes[\$1] = 1
+                                next
+                        }
 
-                #second file
-                /^>/  {
+                        #second file
+                        /^>/  {
 
+                            print # print header
+                            gene = substr(\$0,2) #strip > from header for regex matching
+                            getline seq #store sequence for header
 
-                    print # print header
-                    gene = substr(\$0,2) #strip > from header for regex matching
-                    getline seq #store sequence for header
+                            if (gene in genes) {
+                                # mask sequence
+                                gsub(/./, mask, seq)
+                                print seq
+                            } else {
+                                # print sequence as-is
+                                print seq
+                            }
 
-                    if (gene in genes) {
-                        # mask sequence
-                        gsub(/./, mask, seq)
-                        print seq
-                    } else {
-                        # print sequence as-is
-                        print seq
-                    }
-
-                    next
-                }' ./genes_to_mask/"\${cleaner_name}_presence_absence_genes.index" "\$user_gene_seqs" > "\${name}"_tmp_masked && mv "\${name}"_tmp_masked "\${user_gene_seqs}"
+                            next
+                        }' ./genes_to_mask/"\${cleaner_name}_presence_absence_genes.index" "\$user_gene_seqs" > "\${name}"_tmp_masked && mv "\${name}"_tmp_masked "\${user_gene_seqs}"
+                else
+                        echo "No index file found for \${cleaner_name}, skipping masking"
+                fi
         }
         export -f mask_genes
+
+        echo -e "Checking test before masking genes"
+        head -n 4 ./input_modern/test.fasta
 
         if [[ "\$synthetics_activator" -eq 1 && "\$input_as_modern_activator" -eq 1 ]]; then
                 find ./input_modern/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
                 find ./synthetic_reads/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
-                find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                fi
+
         elif [[ "\$synthetics_activator" -eq 1 && "\$input_as_modern_activator" -eq 0 ]]; then
                 find ./synthetic_reads/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
-                find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                fi
+
         elif [[ "\$synthetics_activator" -eq 0 && "\$input_as_modern_activator" -eq 1 ]]; then
-                find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                fi
+
                 find ./input_modern/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
         else
-                find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
+                fi
         fi
+
+        echo -e "Checking test modern input data contents after masking genes"
+        head -n 4 ./input_modern/test.fasta
 
         # modern_samples_list() will create a text file with modern genomes names
         modern_samples_list() {
@@ -270,32 +308,64 @@ process FILTER_GENE_ALIGNMENTS {
 
 
         if [[ "\$synthetics_activator" -eq 1 && "\$input_as_modern_activator" -eq 1 ]]; then
+
                 find synthetic_reads/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 1
                 find input_modern/ -name "*fasta" | parallel -j $parallel index_and_formatting {} 1
-                find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+                fi
+
         elif [[ "\$synthetics_activator" -eq 1 && "\$input_as_modern_activator" -eq 0 ]]; then
+
                 find synthetic_reads/ -name "*fasta" | parallel -j $parallel index_and_formatting {} 1
-                find user_genes/ -name "*fasta" | parallel -j $parallel index_and_formatting {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+                fi
+
         elif [[ "\$synthetics_activator" -eq 0 && "\$input_as_modern_activator" -eq 1 ]]; then
-                find user_genes/ -name "*fasta" | parallel -j $parallel index_and_formatting {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+                fi
+
                 find input_modern/ -name "*fasta" | parallel -j $parallel index_and_formatting {} 1
         else
-                find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        find user_genes/ -name "*.fasta" | parallel -j $parallel index_and_formatting {} 0
+                fi
+
         fi
 
-        #concatenating userSampleNames if synth eq 0
-        if compgen -G "*_userSampleNames_tmp.txt" > /dev/null; then
-                cat *_userSampleNames_tmp.txt >> userSampleNames.txt
-                rm *_userSampleNames_tmp.txt
+        if [[ "\${only_modern}" -eq 0 ]]; then
+                shopt -s nullglob
+                files=( *_userSampleNames_tmp.txt )
+
+                if (( \${#files[@]} > 0 )); then
+                        cat "\${files[@]}" >> userSampleNames.txt
+                        rm "\${files[@]}"
+                fi
+                shopt -u nullglob
         fi
 
-		#before making the files with filenames I need to exclude blacklisted samples
-        grep -vxFf blackListed.txt userSampleNames.txt | sed '/^\$/d' > tmp1 && mv tmp1 userSampleNames.txt      
-        grep -vxFf blackListed.txt modern_group_as_input.txt | sed '/^\$/d' > tmp2 && mv tmp2 modern_group_as_input.txt      
+        echo -e "Checking test modern input data contents after indexing_and_formatting"
+        head -n 4 ./input_modern/test.fasta
 
-	
+        #before making the files with filenames I need to exclude blacklisted samples
+        if [[ "\${only_modern}" -eq 0 ]]; then
+                grep -vxFf blackListed.txt userSampleNames.txt | sed '/^\$/d' > tmp1 && mv tmp1 userSampleNames.txt
+        fi
+
+        grep -vxFf blackListed.txt modern_group_as_input.txt | sed '/^\$/d' > tmp2 && mv tmp2 modern_group_as_input.txt
+
         #make a file with every sample combined
-        cat modernSampleNames.txt userSampleNames.txt > sampleNames.txt
+        if [[ "\${only_modern}" -eq 0 ]]; then
+                cat modernSampleNames.txt userSampleNames.txt > sampleNames.txt
+        else
+                cat modernSampleNames.txt > sampleNames.txt
+        fi
 
         if [[ -s modern_group_as_input.txt ]]; then
                 cat modern_group_as_input.txt >> sampleNames.txt
@@ -304,7 +374,11 @@ process FILTER_GENE_ALIGNMENTS {
 
         #including synthetic samples
         if [[ -s synthetic_samples.txt ]]; then
-                cat userSampleNames.txt synthetic_samples.txt > sample_names_withSynthetics.txt
+                if [[ "\${only_modern}" -eq 0 ]]; then
+                        cat userSampleNames.txt synthetic_samples.txt > sample_names_withSynthetics.txt
+                else
+                        cat synthetic_samples.txt > sample_names_withSynthetics.txt
+                fi
 
                 if [[ -s modern_group_as_input.txt ]]; then
                         cat modern_group_as_input.txt >> sample_names_withSynthetics.txt
@@ -315,18 +389,22 @@ process FILTER_GENE_ALIGNMENTS {
 
         echo -e "Adding user sample genes sequences to each particular gene MSA and replace gene name with sample name"
 
+        echo -e "VALUE for only_modern: \$only_modern"
+
         #add_user_sample_sequences() adds user sample gene sequences into each panaroo msa and replaces gene name with user sample name
         add_user_sample_sequences() {
         fasta_file=\$1
         modern_switch=\$2
-
+        no_ancient_data=\$3
 
                 if [[ -e "\$fasta_file" ]]; then
                         name=\$(basename "\${fasta_file%_parsing_panaroo.fasta}")
 
-                        while read -r sampleName; do
-                                grep -w -A 1 "\$name" "user_genes/\${sampleName}.fasta" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${fasta_file}"
-                        done < userSampleNames.txt
+                        if [[ "\${no_ancient_data}" -eq 0 ]]; then
+                                while read -r sampleName; do
+                                        grep -w -A 1 "\$name" "user_genes/\${sampleName}.fasta" | awk -v newHeader="\$sampleName" '/^>/ {sub(/^>.*/, ">" newHeader, \$0)} {print}' >> "\${fasta_file}"
+                                done < userSampleNames.txt
+                        fi
 
                         if [[ \$modern_switch -eq 1 ]]; then
 
@@ -341,13 +419,18 @@ process FILTER_GENE_ALIGNMENTS {
                 fi
         }
         export -f add_user_sample_sequences
-        if [[ "\$input_as_modern_activator" -eq 1 ]]; then
-                find panaroo_parsed/ -name "*.fasta" | parallel -j $parallel add_user_sample_sequences {} 1
-        else
-                find panaroo_parsed/ -name "*.fasta" | parallel -j $parallel add_user_sample_sequences {} 0
-        fi
-        echo -e "Done"
 
+        if [[ "\${only_modern}" -eq 0 ]]; then
+
+                if [[ "\$input_as_modern_activator" -eq 1 ]]; then
+
+                        find panaroo_parsed/ -name "*.fasta" | parallel -j $parallel add_user_sample_sequences {} 1 0
+                else
+                        find panaroo_parsed/ -name "*.fasta" | parallel -j $parallel add_user_sample_sequences {} 0 0
+                fi
+        else
+                find panaroo_parsed/ -name "*.fasta" | parallel -j $parallel add_user_sample_sequences {} 1 1
+        fi
 
         #add_synthetic_sample_sequences() adds synthetic samples gene sequences into each panaroo msa and replaces gene name with user sample name
         add_synthetic_sample_sequences() {
@@ -424,6 +507,7 @@ process FILTER_GENE_ALIGNMENTS {
                 mv "\$fasta_file"_synth_tmp "\$fasta_file"
         }
         export -f removing_input_panaroo
+
         if [[ "\$synthetics_activator" -eq 1 ]]; then
                 find ./panaroo_parsed -name "*fasta" | parallel -j  $parallel removing_input_panaroo
         fi
@@ -452,11 +536,12 @@ process FILTER_GENE_ALIGNMENTS {
                 done < modernSampleNames.txt
         }
         export -f check_panaroo_headers_artifacts
+
         if [[ "\$synthetics_activator" -eq 0 ]]; then
                 find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel check_panaroo_headers_artifacts
         fi
-        echo -e "Done"
 
+        echo -e "Done"
 
 
         modern_append_gaps() {
@@ -474,14 +559,16 @@ process FILTER_GENE_ALIGNMENTS {
                 done < "\${index_file}"
         }
         export -f modern_append_gaps
-        if [[ "\$synthetics_activator" -eq 0 ]]; then
+
+        if [[ "\${synthetics_activator}" -eq 1 ]]; then
+                find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel modern_append_gaps {} sample_names_withSynthetics.txt
+        else
                 if [[ "\$input_as_modern_activator" -eq 1 ]]; then
-                        find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel modern_append_gaps {} modernSampleNames.txt
-                else
                         find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel modern_append_gaps {} panaroo_modern_and_input_modern.txt
+                else
+                        find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel modern_append_gaps {} modernSampleNames.txt
                 fi
         fi
-
 
         #synth_append_gaps() will check if there are modern strains from synthetic reads missing in panaroo_parsed alignments. If yes, append the sample and padding with -
         echo -e "Padding missing samples. Gaps for modern strains and n for ancient samples"
@@ -500,6 +587,7 @@ process FILTER_GENE_ALIGNMENTS {
                 done < synthetic_samples.txt
         }
         export -f synth_append_gaps
+
         if [[ "\$synthetics_activator" -eq 1 ]]; then
                 find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel synth_append_gaps
         fi
@@ -521,7 +609,10 @@ process FILTER_GENE_ALIGNMENTS {
         }
 
         export -f ancient_append_missingness
-        find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel ancient_append_missingness
+
+        if [[ "\${only_modern}" -eq 0 ]]; then
+                find panaroo_parsed/ -name "*_parsing_panaroo.fasta" | parallel -j $parallel ancient_append_missingness
+        fi
 
         echo -e "Done"
 
@@ -686,10 +777,10 @@ process FILTER_GENE_ALIGNMENTS {
                }' "\$msa_file" > special_cases/tmp_"\${name}" && mv special_cases/tmp_"\${name}" "\${msa_file}"
        }
 
-        #export -f checking_alignment_lengths
-        #find special_cases/ -name "*.fasta" | parallel -j $parallel checking_alignment_lengths
-        #echo -e "Done"
-        #NOTE: We may not need this function anymore as we are re-aligning everything with mafft.
+        export -f checking_alignment_lengths
+
+        find special_cases/ -name "*.fasta" | parallel -j $parallel checking_alignment_lengths
+        echo -e "Done"
 
 
         #now check if these cleaned fasta passed the sanitised_msa() test.
