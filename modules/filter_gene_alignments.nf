@@ -101,7 +101,7 @@ process FILTER_GENE_ALIGNMENTS {
         #if no ancient data was used in the analysis, then
         shopt -s nullglob
         only_modern=0
-        ancient_samples=\$(awk '\$4 == "A" { print \$3 }' \$config)
+        ancient_samples=\$(awk '\$4 == "A" { print \$3 }' $config)
         if [[ -z "\$ancient_samples" ]]; then
                 echo -e "No ancient data found. Execution for only modern data"
                 only_modern=1
@@ -120,7 +120,7 @@ process FILTER_GENE_ALIGNMENTS {
 
                 while read -r removeMe; do
 
-                                status=\$(awk -v sample_to_remove="\$removeMe" '\$3 == sample_to_remove { print \$4 }' config_test.tab)
+                                status=\$(awk -v sample_to_remove="\$removeMe" '\$3 == sample_to_remove { print \$4 }' $config)
                                 if [[ "\$status" == "A" ]]; then
 
                                         echo "Sample to move: \$removeMe"
@@ -218,9 +218,6 @@ process FILTER_GENE_ALIGNMENTS {
         }
         export -f mask_genes
 
-        echo -e "Checking test before masking genes"
-        head -n 4 ./input_modern/test.fasta
-
         if [[ "\$synthetics_activator" -eq 1 && "\$input_as_modern_activator" -eq 1 ]]; then
                 find ./input_modern/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
                 find ./synthetic_reads/ -name "*fasta" | parallel -j $parallel mask_genes {} 1
@@ -247,9 +244,6 @@ process FILTER_GENE_ALIGNMENTS {
                         find ./user_genes/ -name "*fasta" | parallel -j $parallel mask_genes {} 0
                 fi
         fi
-
-        echo -e "Checking test modern input data contents after masking genes"
-        head -n 4 ./input_modern/test.fasta
 
         # modern_samples_list() will create a text file with modern genomes names
         modern_samples_list() {
@@ -350,8 +344,6 @@ process FILTER_GENE_ALIGNMENTS {
                 shopt -u nullglob
         fi
 
-        echo -e "Checking test modern input data contents after indexing_and_formatting"
-        head -n 4 ./input_modern/test.fasta
 
         #before making the files with filenames I need to exclude blacklisted samples
         if [[ "\${only_modern}" -eq 0 ]]; then
