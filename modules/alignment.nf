@@ -10,10 +10,9 @@ process ALIGNMENT {
 
         output:
         path '*_aligned.bam', emit: postAlignedBams
-        path '*_final.fastq', emit: postAlignedReads
-        path '*_sorted_mappedreads.bam', emit: bam_mapdamage
+        path '*_final.fastq', emit: postAlignedReads, optional: true
         path 'extended_pangenome_reference.fasta.*' , emit: pan_index
-        path 'results*', emit: mapdamage_results
+        path 'results*', emit: mapdamage_results, optional: true
 
         script:
         """
@@ -23,9 +22,6 @@ process ALIGNMENT {
         mkdir -p ${params.output}/MAPDAMAGE
 
         bwa index $panRef
-
-        awk '\$4=="M"{ print > "modern_config.tab"} \$4=="A" { print > "ancient_config.tab"}' $configFile
-
 
         #align() will align the data and perform several post-alignment computations
         align() {
@@ -45,7 +41,7 @@ process ALIGNMENT {
                 if [[ "\$status" == "A" ]]; then
                 echo "Using bwa aln for \$filename" >> LOGFILE
 
-                                # Making read groups
+                            # Making read groups
                             rg_id="\${name}"  # sample name as id
                             rg_sm="\${name}" # sample name again
                             rg_pl="illumina"        # I dont think this is very important for this pipeline so its going to be just illumina because why not
@@ -75,6 +71,7 @@ process ALIGNMENT {
                             samtools fastq -@ $threadsGlobal "\${name}_aligned.bam" > "\${name}_final.fastq"
                         else
                             bam trimBam "\${name}_sorted_mappedreads.bam" "\${name}_softclipped.bam" -L "\$softClip" -R "\$softClip" --clip
+                            mapDamage --merge-reference-sequences -i "\${name}_sorted_mappedreads.bam" -r $panRef
                             picard MarkDuplicates OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 REMOVE_DUPLICATES=TRUE I="\${name}_softclipped.bam" O="\${name}_deduped.bam" M="\${name}_deduped.stats"
                             samtools view -q $quality -o "\${name}_qc.bam" "\${name}_deduped.bam"
                             samtools view -e 'length(seq)>$minReadLength && length(seq)<$maxReadLength' -O BAM -o "\${name}_lg.bam" "\${name}_qc.bam"
@@ -106,11 +103,35 @@ process ALIGNMENT {
             find $data/* -name "*.fastq*" | parallel -j $parallel align
         fi
 
-        rm *sam *sai *_lg.bam *_qc.bam
+
+        shopt -s nullglob
+        #remove files that can be optional
+        sam_files=( *.sam )
+        (( \${#sam_files[@]} )) && rm "\${sam_files[@]}"
+
+        sai_files=( *.sai )
+        (( \${#sai_files[@]} )) && rm "\${sai_files[@]}"
+
+        lg_files=( *_lg.bam )
+        (( \${#lg_files[@]} )) && rm "\${lg_files[@]}"
+
+        qc_files=( *_qc.bam )
+        (( \${#qc_files[@]} )) && rm "\${qc_files[@]}"
+
+        ancient_fastq_files=( *_final.fastq )
+        mapdamage_results=( results_* )
 
         cp *_aligned.bam ${params.output}/ALIGNMENT
-        cp *_final.fastq ${params.output}/ALIGNMENT
-        cp -r results_* ${params.output}/MAPDAMAGE
+
+        if (( \${#ancient_fastq_files[@]} )); then
+                cp *_final.fastq ${params.output}/ALIGNMENT
+        fi
+
+        if (( \${#mapdamage_results[@]} )); then
+                cp -r results_* ${params.output}/MAPDAMAGE
+        fi
+
+        shopt -u nullglob
 
         cat .command.out >> alignment.log
         """
