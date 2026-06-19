@@ -26,6 +26,7 @@ process BUILD_MSA {
 	#!/bin/bash
 
 	mkdir -p ${params.output}/GENE_MSA
+	mkdir -p ${params.output}/TREE
 
 	touch maskedMatrixGenesNoUbiquitous.fasta
 	touch maskedMatrixGenesOnlyAncient.fasta
@@ -99,25 +100,24 @@ process BUILD_MSA {
 		# Build a list of existing files
 		files=()
 		while read -r gene; do
-    		file="genes/\${gene}.fasta"
+	    	file="genes/\${gene}.fasta"
     		if [[ -f "\$file" ]]; then
-        		files+=("\$file")
+	       		files+=("\$file")
     		else
-        		echo "Warning: File \$file not found, skipping..."
+	       		echo "Warning: File \$file not found, skipping..."
     		fi
 		done < "\$inputfile"
-
+	
 		#append genes array to MSA into array
 		files=("\$filename".fasta "\${files[@]}")
-
+	
 		#paste everything inside array
 		paste "\${files[@]}" | tr -d '\t' > TMP_"\${filename}"
 		mv TMP_"\${filename}" "\${filename}".fasta
-
+	
 		#Clean headers (if needed)
 		awk -F'>' '/^>/ {print ">" \$2} !/^>/' "\${filename}".fasta > TMPg_"\${filename}"
 		mv TMPg_"\${filename}" "\${filename}".fasta
-
 	}
 	export -f build_msa
 	find ./ -name "filesList_*" | parallel -j $parallel build_msa
@@ -129,5 +129,9 @@ process BUILD_MSA {
 	mv genesAbovePercentSeries.fasta genesAbovePercentMSA.fasta
 
 	cp -r ./genes/*fasta ${params.output}/GENE_MSA
+	cp genesAbovePercentMSA.fasta ${params.output}/TREE/threshold.fasta
+	cp maskedMatrixGenesUbiquitousMSA.fasta ${params.output}/TREE/core.fasta
+	cp maskedMatrixGenesOnlyAncientMSA.fasta ${params.output}/TREE/ancient.fasta
+	cp maskedMatrixGenesNoUbiquitousMSA.fasta ${params.output}/TREE/accessory.fasta
 	"""
 }
