@@ -23,6 +23,8 @@ process MAKE_PANGENOME {
 	"""
 	#!/bin/bash
 
+	mkdir -p ${params.output}/PANGENOME
+
 	#make pangenome
 	panaroo -i *.gff -o ./ --clean-mode $pangenomeMode -a $alignment --merge_paralogs --core_threshold $pangenomeThreshold -t $threads
 
@@ -38,7 +40,10 @@ process MAKE_PANGENOME {
 	#replace ~ with _ on final graph
 	sed -i -e 's/~/_/g' final_graph.gml
 
-	
 	cat .command.out >> makePangenome.log
+	cp makePangenome.log ${params.output}/PANGENOME
+	cp gene_data.csv ${params.output}/PANGENOME
+	cp final_graph.gml ${params.output}/PANGENOME
+	cp summary_statistics.txt ${params.output}/PANGENOME
 	"""
 }
