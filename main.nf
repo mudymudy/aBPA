@@ -113,7 +113,7 @@ def print_help() {
      println "  --threshold_value_heatmap           <FLOAT>  custom gene set cutoff value. Include a gene if it is present in N percent of samples (Current value: ${params.threshold_value_heatmap})"
      println "  --plot_heatmap                        <1/0>  if set to 1, panchronos will plot heatmap of presence/absence of genes. Set it to 0 to skip it (Current value: ${params.plot_heatmap})"
      println "  --rescale                             <1/0>  rescale aligned reads quality instead of trimming them. 1 to activate, 0 to deactivate. If active, panchronos will not trim reads (Current value: ${params.rescale})"
-     println "  --min_site_allelic_dominance      <INT/FLOAT>  minimal dominance (in percentage) for major allele per site. If less than, site is masked (Current value: ${params.min_site_allelic_dominance})"
+     println "  --min_site_allelic_dominance    <INT/FLOAT>  minimal dominance (in percentage) for major allele per site. If less than, site is masked (Current value: ${params.min_site_allelic_dominance})"
      println "  --max_dp_mean_multiplier        <INT/FLOAT>  maximal cutoff for per site coverage multiplied by genome-wide depth of coverage (Current value: ${params.max_dp_mean_multiplier})"
      println "  --skip_trees                   <true/false>  if true, pipeline ends before computing phylogenetic trees (Current value: ${params.skip_trees})"
      println "  --synthetic_reads_depth               <INT>  mean depth of coverage for synthetic reads FASTQ files (Current value: ${params.synthetic_reads_depth})"
