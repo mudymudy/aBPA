@@ -255,7 +255,7 @@ workflow {
 
         OUTGROUP_READS(GET_OUTGROUP.out.outgroupFasta)
 
-        OUTGROUP_ALIGNMENT(OUTGROUP_READS.out.outgroupReads, FORMATTING_PANGENOME.out.originalPangenomeReference,
+        OUTGROUP_ALIGNMENT(OUTGROUP_READS.out.outgroupReads, EXTEND_SEQUENCES.out.unextended_reference,
                                 params.outgroup_alignment_threads)
 
         OUTGROUP_CONSENSUS(OUTGROUP_ALIGNMENT.out.outgroupFastaPostAlignment,
