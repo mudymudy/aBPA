@@ -208,9 +208,9 @@ If you are unsure about the available workflow settings or parameters, you can d
 nextflow run main.nf --help
 ```
 
-For more comprehensive documentation, please refer to:
+For a more comprehensive documentation, please click on this [link](https://shigekinakagomelab.com/s/panchronos_v10-beta15_Documentation.pdf)
 
-https://shigekinakagomelab.com/Software/
+
 
 
 # 9/ Troubleshooting
