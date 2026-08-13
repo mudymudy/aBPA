@@ -88,7 +88,7 @@ process ALIGNMENT {
                         samtools sort -o "\$name"Sorted.bam -O bam -@ $threadsGlobal "\$name".bam
                         picard MarkDuplicates OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 REMOVE_DUPLICATES=TRUE I="\$name"Sorted.bam O="\${name}_deduped.bam" M="\${name}_deduped.stats"
                         samtools index "\${name}_deduped.bam"
-                        samtools view -b -@ 10 -F 4 "\${name}_deduped.bam" > "\$name"SortedMappedreads.bam
+                        samtools view -b -@ $threadsGlobal -F 4 "\${name}_deduped.bam" > "\$name"SortedMappedreads.bam
                         samtools index "\$name"SortedMappedreads.bam
                         samtools sort -o "\$name"_aligned.bam -O bam -@ $threadsGlobal "\$name"SortedMappedreads.bam
                     fi
